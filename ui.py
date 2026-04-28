@@ -1,0 +1,69 @@
+from inspect import signature
+
+import streamlit as st
+
+
+PAGE_OPTIONS = [
+    "📊 Overview & Summary",
+    "🏷️ Tag Analysis",
+    "📈 Profit Analysis",
+    "🎯 Genre Analysis",
+    "📅 Release Trends",
+    "🌍 Language & Categories",
+    "🎮 DLC Impact",
+    "🤖 ML Model Trainer",
+]
+
+
+def get_stretch_width_kwargs():
+    """Prefer Streamlit's new width API while supporting older installs."""
+    if "width" in signature(st.plotly_chart).parameters:
+        return {"width": "stretch"}
+    return {"use_container_width": True}
+
+
+STRETCH_WIDTH = get_stretch_width_kwargs()
+
+
+def apply_custom_css():
+    st.markdown(
+        """
+        <style>
+        .main > div {padding-top: 2rem;}
+        .stMetric {background-color: #f0f2f6; padding: 10px; border-radius: 5px;}
+        .block-container {padding-top: 2rem;}
+        h1, h2, h3 {color: #1f77b4;}
+        </style>
+    """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_sidebar():
+    with st.sidebar:
+        st.title("🎮 Steam Games Analytics")
+        st.markdown("---")
+        st.header("🗄️ Data Source")
+        st.caption("MongoDB Atlas")
+        if st.button("Refresh MongoDB data"):
+            st.cache_data.clear()
+            st.rerun()
+
+        st.markdown("---")
+        st.header("🔍 Navigation")
+        page = st.radio("Go to section:", PAGE_OPTIONS, index=0)
+
+        st.markdown("---")
+        st.caption("Built from notebook: project2 (2).ipynb")
+
+    return page
+
+
+def show_data_load_message():
+    st.warning("Could not load the games data from MongoDB.")
+    st.markdown("""
+    ### Check:
+    1. Atlas Network Access allows this machine's current public IP address.
+    2. `.streamlit/secrets.toml` or `~/.streamlit/secrets.toml` contains a valid MongoDB URI.
+    3. Collection names are configured if auto-detection cannot find them.
+    """)
