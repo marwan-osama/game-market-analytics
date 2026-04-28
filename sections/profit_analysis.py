@@ -6,7 +6,7 @@ from ui import STRETCH_WIDTH
 
 
 def render_profit_analysis(df, merged_data):
-    st.title("📈 Profit Analysis")
+    st.title("Profit Analysis")
     st.markdown("---")
 
     if "tag" not in df.columns:
@@ -51,7 +51,7 @@ def render_profit_analysis(df, merged_data):
             tag_df["Average Profit (M)"] / tag_df["Game Count"]
         ).round(2)
 
-    st.subheader("💰 Profit Metrics by Tag")
+    st.subheader("Profit Metrics by Tag")
     st.dataframe(
         tag_df.style.format(
             {
@@ -112,7 +112,7 @@ def render_profit_analysis(df, merged_data):
 
     st.markdown("---")
 
-    st.subheader("📊 Average Profit per Game by Tag")
+    st.subheader("Average Profit per Game by Tag")
     fig_profit_game = px.bar(
         sorted_df,
         x="tag",
@@ -128,7 +128,7 @@ def render_profit_analysis(df, merged_data):
 
     if merged_data is not None and "primary_tag" in merged_data.columns:
         st.markdown("---")
-        st.subheader("🏆 Top Games by Estimated Profit")
+        st.subheader("Top Games by Estimated Profit")
 
         if (
             "total_steam_purchases" in merged_data.columns

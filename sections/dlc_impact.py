@@ -5,14 +5,14 @@ from ui import STRETCH_WIDTH
 
 
 def render_dlc_impact(df):
-    st.title("🎮 DLC Impact Analysis")
+    st.title("DLC Impact Analysis")
     st.markdown("---")
 
     if "dlc_count" not in df.columns:
         st.warning("DLC data not available. Please upload the DLCs dataset.")
         return
 
-    st.subheader("📊 DLCs vs Positive Reviews")
+    st.subheader("DLCs vs Positive Reviews")
 
     game_with_dlcs = df.dropna(subset=["dlc_count"])
 
@@ -32,7 +32,7 @@ def render_dlc_impact(df):
         st.plotly_chart(fig_dlc, **STRETCH_WIDTH)
 
         st.markdown("---")
-        st.subheader("📋 DLC Summary Statistics")
+        st.subheader("DLC Summary Statistics")
         dlc_summary = (
             game_with_dlcs.groupby("dlc_count")
             .agg(

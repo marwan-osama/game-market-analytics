@@ -5,14 +5,14 @@ from ui import STRETCH_WIDTH
 
 
 def render_tag_analysis(df):
-    st.title("🏷️ Game Tags Analysis")
+    st.title("Game Tags Analysis")
     st.markdown("---")
 
     if "tag" not in df.columns:
         st.warning("Tag column not found in the data.")
         return
 
-    st.subheader("📊 Most Common Tags")
+    st.subheader("Most Common Tags")
     tag_counts = df["tag"].value_counts().reset_index()
     tag_counts.columns = ["tag", "count"]
 
@@ -47,7 +47,7 @@ def render_tag_analysis(df):
 
     st.markdown("---")
 
-    st.subheader("⭐ Positive vs Negative Reviews by Tag")
+    st.subheader("Positive vs Negative Reviews by Tag")
 
     tag_review_stats = (
         df.groupby("tag")
@@ -87,7 +87,7 @@ def render_tag_analysis(df):
 
     st.markdown("---")
 
-    st.subheader("🔥 Tag Statistics Heatmap")
+    st.subheader("Tag Statistics Heatmap")
     genre_stats = df.groupby("tag").agg(
         {"price": "mean", "total_positive": "sum", "total_negative": "sum"}
     )

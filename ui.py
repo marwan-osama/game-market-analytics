@@ -4,14 +4,14 @@ import streamlit as st
 
 
 PAGE_OPTIONS = [
-    "📊 Overview & Summary",
-    "🏷️ Tag Analysis",
-    "📈 Profit Analysis",
-    "🎯 Genre Analysis",
-    "📅 Release Trends",
-    "🌍 Language & Categories",
-    "🎮 DLC Impact",
-    "🤖 ML Model Trainer",
+    "Overview & Summary",
+    "Tag Analysis",
+    "Profit Analysis",
+    "Genre Analysis",
+    "Release Trends",
+    "Language & Categories",
+    "DLC Impact",
+    "ML Model Trainer",
 ]
 
 
@@ -41,16 +41,16 @@ def apply_custom_css():
 
 def render_sidebar():
     with st.sidebar:
-        st.title("🎮 Steam Games Analytics")
+        st.title("Steam Games Analytics")
         st.markdown("---")
-        st.header("🗄️ Data Source")
+        st.header("Data Source")
         st.caption("MongoDB Atlas")
         if st.button("Refresh MongoDB data"):
             st.cache_data.clear()
             st.rerun()
 
         st.markdown("---")
-        st.header("🔍 Navigation")
+        st.header("Navigation")
         page = st.radio("Go to section:", PAGE_OPTIONS, index=0)
 
         st.markdown("---")

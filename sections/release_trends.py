@@ -5,7 +5,7 @@ from ui import STRETCH_WIDTH
 
 
 def render_release_trends(df):
-    st.title("📅 Release Trends Analysis")
+    st.title("Release Trends Analysis")
     st.markdown("---")
 
     if "year" not in df.columns:
@@ -17,7 +17,7 @@ def render_release_trends(df):
 
     col1, col2 = st.columns(2)
     with col1:
-        st.subheader("📈 Games Released Per Year")
+        st.subheader("Games Released Per Year")
         fig_year = px.line(
             games_per_year,
             x="year",
@@ -33,7 +33,7 @@ def render_release_trends(df):
         st.plotly_chart(fig_year, **STRETCH_WIDTH)
 
     with col2:
-        st.subheader("💰 Average Price Per Year")
+        st.subheader("Average Price Per Year")
         avg_price_year = df.groupby("year")["price"].mean().reset_index()
         avg_price_year.columns = ["year", "avg_price"]
 
@@ -50,7 +50,7 @@ def render_release_trends(df):
     st.markdown("---")
 
     if "total_reviews" in df.columns:
-        st.subheader("📊 Reviews Over Time")
+        st.subheader("Reviews Over Time")
         reviews_per_year = df.groupby("year")["total_reviews"].sum().reset_index()
 
         fig_reviews_year = px.bar(

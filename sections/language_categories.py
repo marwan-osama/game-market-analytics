@@ -8,10 +8,10 @@ from ui import STRETCH_WIDTH
 
 
 def render_language_categories(df, merged_data):
-    st.title("🌍 Languages & Categories Analysis")
+    st.title("Languages & Categories Analysis")
     st.markdown("---")
 
-    st.subheader("🌐 Most Used Languages")
+    st.subheader("Most Used Languages")
     if "supported_languages" in df.columns:
         all_languages = []
         for lang_str in df["supported_languages"].dropna():
@@ -47,7 +47,7 @@ def render_language_categories(df, merged_data):
 
     st.markdown("---")
 
-    st.subheader("📂 Most Popular Categories")
+    st.subheader("Most Popular Categories")
     if "categories" in df.columns:
         categories_exploded = df.explode("categories")
         category_counts = categories_exploded["categories"].value_counts().reset_index()
@@ -81,7 +81,7 @@ def render_language_categories(df, merged_data):
 
     if merged_data is not None and "name" in merged_data.columns:
         st.markdown("---")
-        st.subheader("🏆 Top 15 Most Reviewed Games")
+        st.subheader("Top 15 Most Reviewed Games")
         top_purchased = (
             merged_data.groupby(["app_id_game", "name"])
             .size()

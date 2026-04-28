@@ -13,10 +13,10 @@ from ui import STRETCH_WIDTH
 
 
 def render_ml_model_trainer(merged_data):
-    st.title("🤖 ML Model Trainer")
+    st.title("ML Model Trainer")
     st.markdown("---")
 
-    st.info("📌 This section trains ML models to predict game tags based on review features.")
+    st.info("This section trains ML models to predict game tags based on review features.")
 
     if merged_data is None:
         st.warning(
@@ -24,7 +24,7 @@ def render_ml_model_trainer(merged_data):
         )
         return
 
-    st.subheader("⚙️ Model Configuration")
+    st.subheader("Model Configuration")
 
     col1, col2 = st.columns(2)
     with col1:
@@ -65,7 +65,7 @@ def render_ml_model_trainer(merged_data):
         return
 
     st.markdown("---")
-    st.subheader("📊 Data Preparation")
+    st.subheader("Data Preparation")
 
     valid_mask = merged_data[selected_features + [target_col]].notna().all(axis=1)
     data_filtered = merged_data[valid_mask].copy()
@@ -90,7 +90,7 @@ def render_ml_model_trainer(merged_data):
         )
 
         st.markdown("---")
-        st.subheader("🏃‍♂️ Model Training & Results")
+        st.subheader("Model Training & Results")
 
         models = {
             "KNN": KNeighborsClassifier(n_neighbors=11, p=2, metric="euclidean"),
@@ -139,7 +139,7 @@ def render_ml_model_trainer(merged_data):
 
                 st.markdown("---")
 
-        st.subheader("📊 Model Comparison Summary")
+        st.subheader("Model Comparison Summary")
         summary_df = pd.DataFrame(results).sort_values("Accuracy", ascending=False)
 
         fig_summary = px.bar(

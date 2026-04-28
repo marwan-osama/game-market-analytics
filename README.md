@@ -1,8 +1,8 @@
-# 🎮 Steam Games Analytics Dashboard
+# Steam Games Analytics Dashboard
 
 An interactive Streamlit dashboard that replicates the analyses from the original Jupyter notebook (`project2 (2).ipynb`) with interactive widgets and visualizations.
 
-## 📋 Overview
+## Overview
 
 This dashboard provides comprehensive analytics on Steam game data including:
 - **Overview & Summary** - Key metrics, price distributions, and review statistics
@@ -14,7 +14,7 @@ This dashboard provides comprehensive analytics on Steam game data including:
 - **DLC Impact** - Analysis of how DLCs affect positive reviews
 - **ML Model Trainer** - Interactive machine learning model training and comparison
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
@@ -54,7 +54,7 @@ streamlit run app.py
 
 The dashboard will open automatically in your default web browser at `http://localhost:8501`.
 
-## 📊 Data Source
+## Data Source
 
 Data is loaded from MongoDB Atlas at startup and cached for 10 minutes.
 
@@ -64,30 +64,30 @@ Data is loaded from MongoDB Atlas at startup and cached for 10 minutes.
 
 Use the sidebar's **Refresh MongoDB data** button to clear the cache and reload from Atlas.
 
-## 📁 File Structure
+## File Structure
 
 ```
 streamlit_app/
-├── app.py                    # Small Streamlit entrypoint and page router
-├── data_processing.py        # Data loading, preprocessing, and dataframe summaries
-├── ui.py                     # Sidebar, CSS, and shared Streamlit UI helpers
-├── .streamlit/
-│   └── secrets.toml          # Local MongoDB connection settings
-├── sections/                 # One render module per dashboard section
-│   ├── overview.py
-│   ├── tag_analysis.py
-│   ├── profit_analysis.py
-│   ├── genre_analysis.py
-│   ├── release_trends.py
-│   ├── language_categories.py
-│   ├── dlc_impact.py
-│   └── ml_model_trainer.py
-├── requirements.txt          # Python dependencies
-├── README.md                 # This file
-└── data/                     # Optional local data folder
+|-- app.py                    # Small Streamlit entrypoint and page router
+|-- data_processing.py        # Data loading, preprocessing, and dataframe summaries
+|-- ui.py                     # Sidebar, CSS, and shared Streamlit UI helpers
+|-- .streamlit/
+|   `-- secrets.toml          # Local MongoDB connection settings
+|-- sections/                 # One render module per dashboard section
+|   |-- overview.py
+|   |-- tag_analysis.py
+|   |-- profit_analysis.py
+|   |-- genre_analysis.py
+|   |-- release_trends.py
+|   |-- language_categories.py
+|   |-- dlc_impact.py
+|   `-- ml_model_trainer.py
+|-- requirements.txt          # Python dependencies
+|-- README.md                 # This file
+`-- data/                     # Optional local data folder
 ```
 
-## 🔍 Features
+## Features
 
 ### Interactive Controls
 - **Tag Count Slider** - Control the number of tags displayed
@@ -103,7 +103,7 @@ streamlit_app/
 - Feature importance plots for tree-based models
 - Quadrant analysis for competition vs profitability
 
-## 📈 Analysis Sections
+## Analysis Sections
 
 ### 1. Overview & Summary
 - Total games count
@@ -150,16 +150,16 @@ streamlit_app/
 - Feature importance for tree-based models
 - Model comparison summary
 
-## ⚙️ Profit Calculation
+## Profit Calculation
 
 Profit is estimated using the following formula:
 ```
-Profit = Price × Total Steam Purchases × 0.4
+Profit = Price * Total Steam Purchases * 0.4
 ```
 
 Where 0.4 represents Steam's approximate 40% revenue share.
 
-## 🛠️ Troubleshooting
+## Troubleshooting
 
 ### Dashboard doesn't open
 - Check if port 8501 is available
@@ -175,17 +175,17 @@ Where 0.4 represents Steam's approximate 40% revenue share.
 - Ensure the reviews collection is available in MongoDB
 - Ensure the reviews data contains required columns
 
-## 📝 Notes
+## Notes
 
 - The dashboard replicates all analyses from the original notebook
 - All visualizations are interactive - hover over charts for details
 - Data is cached for faster subsequent loads
 - The dashboard works best with larger datasets (1000+ records)
 
-## 🤝 Contributing
+## Contributing
 
 Feel free to submit issues and pull requests!
 
-## 📄 License
+## License
 
 This project is for educational and analytical purposes.

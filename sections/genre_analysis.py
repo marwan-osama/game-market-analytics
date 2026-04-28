@@ -5,14 +5,14 @@ from ui import STRETCH_WIDTH
 
 
 def render_genre_analysis(df):
-    st.title("🎯 Game Genres Analysis")
+    st.title("Game Genres Analysis")
     st.markdown("---")
 
     if "genres" not in df.columns:
         st.warning("Genres column not found in the data.")
         return
 
-    st.subheader("📊 Genre Distribution")
+    st.subheader("Genre Distribution")
 
     genre_exploded = df.explode("genres")
     genre_counts = genre_exploded["genres"].value_counts().reset_index()
@@ -58,7 +58,7 @@ def render_genre_analysis(df):
     st.markdown("---")
 
     if "primary_tag" in df.columns:
-        st.subheader("💰 Genre Profitability")
+        st.subheader("Genre Profitability")
         genre_profit = (
             genre_exploded.groupby("genres")
             .agg(

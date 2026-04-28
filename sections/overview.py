@@ -7,7 +7,7 @@ from ui import STRETCH_WIDTH
 
 
 def render_overview(df):
-    st.title("📊 Steam Games Overview & Summary")
+    st.title("Steam Games Overview & Summary")
     st.markdown("---")
 
     col1, col2, col3, col4 = st.columns(4)
@@ -27,11 +27,11 @@ def render_overview(df):
 
     st.markdown("---")
 
-    with st.expander("📋 Dataset Information"):
+    with st.expander("Dataset Information"):
         st.dataframe(get_dataframe_summary(df), **STRETCH_WIDTH)
         st.dataframe(df.head(10), **STRETCH_WIDTH)
 
-    with st.expander("📝 Missing Values"):
+    with st.expander("Missing Values"):
         null_counts = df.isna().sum()
         null_df = pd.DataFrame(
             {"Missing": null_counts, "Percentage": (null_counts / len(df) * 100)}
@@ -43,7 +43,7 @@ def render_overview(df):
 
     st.markdown("---")
 
-    st.subheader("💰 Price Distribution")
+    st.subheader("Price Distribution")
     if "price" in df.columns:
         fig_price = px.histogram(
             df,
@@ -55,7 +55,7 @@ def render_overview(df):
         fig_price.update_layout(xaxis_title="Price ($)", yaxis_title="Count")
         st.plotly_chart(fig_price, **STRETCH_WIDTH)
 
-    st.subheader("📝 Review Distribution")
+    st.subheader("Review Distribution")
     col1, col2 = st.columns(2)
     with col1:
         if "total_reviews" in df.columns:

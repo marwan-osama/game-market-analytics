@@ -180,23 +180,10 @@ def load_dashboard_data():
     dlcs_data = result["dlcs_data"]
     reviews_data = result["reviews_data"]
 
-    st.success(
-        f"Games data loaded from MongoDB: {games_data.shape[0]} rows, {games_data.shape[1]} columns"
-    )
-    if dlcs_data is not None:
-        st.success(
-            f"DLCs data loaded from MongoDB: {dlcs_data.shape[0]} rows, {dlcs_data.shape[1]} columns"
-        )
-    if reviews_data is not None:
-        st.success(
-            f"Reviews data loaded from MongoDB: {reviews_data.shape[0]} rows, {reviews_data.shape[1]} columns"
-        )
-
-    st.caption(
-        "MongoDB source: "
-        f"{result['database']} / "
-        f"{', '.join(name for name in result['collections'].values() if name)}"
-    )
+    if hasattr(st, "toast"):
+        st.toast("Data loaded from MongoDB")
+    else:
+        st.success("Data loaded from MongoDB")
     return games_data, dlcs_data, reviews_data
 
 

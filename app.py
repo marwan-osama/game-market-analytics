@@ -14,7 +14,6 @@ from ui import apply_custom_css, render_sidebar, show_data_load_message
 
 st.set_page_config(
     page_title="Steam Games Analytics Dashboard",
-    page_icon="🎮",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -22,14 +21,14 @@ st.set_page_config(
 
 def render_page(page, df, merged_data):
     page_renderers = {
-        "📊 Overview & Summary": lambda: render_overview(df),
-        "🏷️ Tag Analysis": lambda: render_tag_analysis(df),
-        "📈 Profit Analysis": lambda: render_profit_analysis(df, merged_data),
-        "🎯 Genre Analysis": lambda: render_genre_analysis(df),
-        "📅 Release Trends": lambda: render_release_trends(df),
-        "🌍 Language & Categories": lambda: render_language_categories(df, merged_data),
-        "🎮 DLC Impact": lambda: render_dlc_impact(df),
-        "🤖 ML Model Trainer": lambda: render_ml_model_trainer(merged_data),
+        "Overview & Summary": lambda: render_overview(df),
+        "Tag Analysis": lambda: render_tag_analysis(df),
+        "Profit Analysis": lambda: render_profit_analysis(df, merged_data),
+        "Genre Analysis": lambda: render_genre_analysis(df),
+        "Release Trends": lambda: render_release_trends(df),
+        "Language & Categories": lambda: render_language_categories(df, merged_data),
+        "DLC Impact": lambda: render_dlc_impact(df),
+        "ML Model Trainer": lambda: render_ml_model_trainer(merged_data),
     }
     page_renderers[page]()
 
