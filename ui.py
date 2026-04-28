@@ -29,10 +29,31 @@ def apply_custom_css():
     st.markdown(
         """
         <style>
-        .main > div {padding-top: 2rem;}
-        .stMetric {background-color: #f0f2f6; padding: 10px; border-radius: 5px;}
-        .block-container {padding-top: 2rem;}
-        h1, h2, h3 {color: #1f77b4;}
+        .main > div { padding-top: 2rem; }
+        .block-container { padding-top: 2rem; }
+
+        h1, h2, h3 {
+            color: #1f77b4;
+        }
+
+        [data-testid="stSidebar"] {
+            background-color: #262730;
+        }
+
+        [data-testid="stMetric"] {
+            background-color: transparent;
+            border: 0;
+            padding: 0;
+            border-radius: 0;
+        }
+
+        [data-testid="stMetricLabel"] {
+            color: #c9d1d9;
+        }
+
+        [data-testid="stMetricValue"] {
+            color: #fafafa;
+        }
         </style>
     """,
         unsafe_allow_html=True,
