@@ -2,8 +2,8 @@ from inspect import signature
 
 import streamlit as st
 
-
 PAGE_OPTIONS = [
+    "Game Listing",
     "Overview & Summary",
     "Tag Analysis",
     "Profit Analysis",
@@ -63,19 +63,7 @@ def apply_custom_css():
 def render_sidebar():
     with st.sidebar:
         st.title("Steam Games Analytics")
-        st.markdown("---")
-        st.header("Data Source")
-        st.caption("MongoDB Atlas")
-        if st.button("Refresh MongoDB data"):
-            st.cache_data.clear()
-            st.rerun()
-
-        st.markdown("---")
-        st.header("Navigation")
         page = st.radio("Go to section:", PAGE_OPTIONS, index=0)
-
-        st.markdown("---")
-        st.caption("Built from notebook: project2 (2).ipynb")
 
     return page
 

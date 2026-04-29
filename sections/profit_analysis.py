@@ -39,9 +39,7 @@ def render_profit_analysis(df, merged_data):
         )
 
     tag_df = pd.DataFrame(results)
-    tag_df = tag_df.sort_values("Total Reviews", ascending=False).reset_index(
-        drop=True
-    )
+    tag_df = tag_df.sort_values("Total Reviews", ascending=False).reset_index(drop=True)
 
     if "total_reviews" in df.columns:
         tag_df["Average Profit (M)"] = (
@@ -55,9 +53,9 @@ def render_profit_analysis(df, merged_data):
     st.dataframe(
         tag_df.style.format(
             {
-                "avg_price": "${:.2f}",
-                "Average Profit (M)": "${:.2f}M",
-                "Average Profit per game (M)": "${:.4f}M",
+                "avg_price": lambda value: f"${value:.2f}",
+                "Average Profit (M)": lambda value: f"${value:.2f}M",
+                "Average Profit per game (M)": lambda value: f"${value:.2f}M",
             }
         ),
         **STRETCH_WIDTH,
@@ -90,7 +88,7 @@ def render_profit_analysis(df, merged_data):
             color_continuous_scale="Viridis",
             text="Average Profit (M)",
         )
-        fig_profit.update_traces(texttemplate="${:.2f}M", textposition="outside")
+        fig_profit.update_traces(texttemplate="$%{text:.2f}M", textposition="outside")
         fig_profit.update_layout(xaxis_tickangle=45)
         st.plotly_chart(fig_profit, **STRETCH_WIDTH)
     else:
@@ -122,7 +120,7 @@ def render_profit_analysis(df, merged_data):
         color_continuous_scale="Blues",
         text="Average Profit per game (M)",
     )
-    fig_profit_game.update_traces(texttemplate="${:.4f}M", textposition="outside")
+    fig_profit_game.update_traces(texttemplate="$%{text:.2f}M", textposition="outside")
     fig_profit_game.update_layout(xaxis_tickangle=45)
     st.plotly_chart(fig_profit_game, **STRETCH_WIDTH)
 

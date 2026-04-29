@@ -205,13 +205,7 @@ def preprocess_data(games_data, dlcs_data, reviews_data):
 
     cols_to_drop = [
         "description",
-        "developers",
-        "header_image",
-        "publishers",
-        "short_description",
         "total_english_reviews",
-        "url",
-        "website",
     ]
     games_clean = games_data.drop(
         [col for col in cols_to_drop if col in games_data.columns], axis=1

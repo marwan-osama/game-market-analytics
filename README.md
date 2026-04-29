@@ -5,6 +5,7 @@ An interactive Streamlit dashboard that replicates the analyses from the origina
 ## Overview
 
 This dashboard provides comprehensive analytics on Steam game data including:
+- **Game Listing** - Product-style game cards with search, filters, sorting, and pagination
 - **Overview & Summary** - Key metrics, price distributions, and review statistics
 - **Tag Analysis** - Most common tags, positive/negative review breakdowns, and heatmaps
 - **Profit Analysis** - Estimated profits by tag, top games by profit, and sentiment analysis
@@ -74,6 +75,7 @@ streamlit_app/
 |-- .streamlit/
 |   `-- secrets.toml          # Local MongoDB connection settings
 |-- sections/                 # One render module per dashboard section
+|   |-- game_listing.py
 |   |-- overview.py
 |   |-- tag_analysis.py
 |   |-- profit_analysis.py
@@ -90,6 +92,7 @@ streamlit_app/
 ## Features
 
 ### Interactive Controls
+- **Game Catalog Filters** - Search, genre, tag, category, price, release year, score, and DLC filters
 - **Tag Count Slider** - Control the number of tags displayed
 - **Chart Type Selector** - Switch between bar charts, treemaps, and scatter plots
 - **Sort Options** - Sort profit analysis by different metrics
@@ -105,45 +108,51 @@ streamlit_app/
 
 ## Analysis Sections
 
-### 1. Overview & Summary
+### 1. Game Listing
+- Product-style cards for browsing the Steam game catalog
+- Search by title, description, developer, or publisher
+- Filter by genre, tag, category, price range, release year, positive review percentage, and DLC availability
+- Sort by reviews, score, release date, price, or name
+
+### 2. Overview & Summary
 - Total games count
 - Average price and review metrics
 - Price and review distribution histograms
 - Missing values analysis
 
-### 2. Tag Analysis
+### 3. Tag Analysis
 - Most common game tags
 - Positive vs negative reviews by tag
 - Tag statistics heatmap
 - Tag counts with interactive filtering
 
-### 3. Profit Analysis
+### 4. Profit Analysis
 - Estimated profit by tag (40% revenue share assumption)
 - Average profit per game by tag
 - Top games by estimated profit
 - Profit vs review sentiment scatter plot
 
-### 4. Genre Analysis
+### 5. Genre Analysis
 - Genre distribution
 - Average positive review percentage by genre
 - Genre profitability metrics
 - Price vs reviews by genre
 
-### 5. Release Trends
+### 6. Release Trends
 - Games released per year
 - Average price over years
 - Total reviews per year
 
-### 6. Languages & Categories
+### 7. Languages & Categories
 - Top 15 most used languages
 - Top 10 game categories/features
 - Top 15 most reviewed games
 
-### 7. DLC Impact
+### 8. DLC Impact
 - DLCs vs positive reviews correlation
 - Summary statistics by DLC count
 
-### 8. ML Model Trainer
+### 9. ML Model Trainer
 - KNN, Gaussian Naive Bayes, Random Forest, Decision Tree
 - Interactive feature selection
 - Confusion matrix visualization

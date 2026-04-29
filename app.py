@@ -2,6 +2,7 @@ import streamlit as st
 
 from data_processing import load_dashboard_data, preprocess_data
 from sections.dlc_impact import render_dlc_impact
+from sections.game_listing import render_game_listing
 from sections.genre_analysis import render_genre_analysis
 from sections.language_categories import render_language_categories
 from sections.ml_model_trainer import render_ml_model_trainer
@@ -21,6 +22,7 @@ st.set_page_config(
 
 def render_page(page, df, merged_data):
     page_renderers = {
+        "Game Listing": lambda: render_game_listing(df),
         "Overview & Summary": lambda: render_overview(df),
         "Tag Analysis": lambda: render_tag_analysis(df),
         "Profit Analysis": lambda: render_profit_analysis(df, merged_data),
