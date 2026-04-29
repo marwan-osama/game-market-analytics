@@ -13,9 +13,9 @@ st.set_page_config(
 )
 
 
-def render_page(page, df, merged_data, reviews_data):
+def render_page(page, df, merged_data, reviews_data, dlcs_data):
     page_renderers = {
-        "Game Listing": lambda: render_game_listing(df, reviews_data),
+        "Game Listing": lambda: render_game_listing(df, reviews_data, dlcs_data),
         "Analytics": lambda: render_analytics(df, merged_data),
     }
     page_renderers[page]()
@@ -32,7 +32,7 @@ def main():
         return
 
     df, merged_data = preprocess_data(games_data, dlcs_data, reviews_data)
-    render_page(page, df, merged_data, reviews_data)
+    render_page(page, df, merged_data, reviews_data, dlcs_data)
 
 
 if __name__ == "__main__":

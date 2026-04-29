@@ -105,6 +105,7 @@ streamlit_app/
 ### 1. Game Listing
 - Product-style cards for browsing the Steam game catalog
 - Internal product details pages for individual games
+- DLC list inside each product detail page when DLC records are available
 - Game review cards with recommendation filters and review-text search
 - Search by title, description, developer, or publisher
 - Filter by genre, tag, category, price range, release year, positive review percentage, and DLC availability
@@ -148,7 +149,6 @@ streamlit_app/
 ### Languages & Categories
 - Top 15 most used languages
 - Top 10 game categories/features
-- Top 15 most reviewed games
 
 ### DLC Impact
 - DLCs vs positive reviews correlation

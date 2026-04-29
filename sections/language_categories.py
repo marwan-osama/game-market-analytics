@@ -78,26 +78,3 @@ def render_language_categories(df, merged_data):
             st.plotly_chart(fig_cat_treemap, **STRETCH_WIDTH)
     else:
         st.info("Categories data not available.")
-
-    if merged_data is not None and "name" in merged_data.columns:
-        st.markdown("---")
-        st.subheader("Top 15 Most Reviewed Games")
-        top_purchased = (
-            merged_data.groupby(["app_id_game", "name"])
-            .size()
-            .reset_index(name="review_count")
-        )
-        top_purchased = top_purchased.sort_values(
-            "review_count", ascending=False
-        ).head(15)
-
-        fig_top_games = px.bar(
-            top_purchased,
-            x="name",
-            y="review_count",
-            title="Top 15 Most Reviewed Games",
-            color="review_count",
-            color_continuous_scale="Viridis",
-        )
-        fig_top_games.update_layout(xaxis_tickangle=-45)
-        st.plotly_chart(fig_top_games, **STRETCH_WIDTH)

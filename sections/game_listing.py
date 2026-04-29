@@ -20,7 +20,7 @@ SORT_OPTIONS = {
 DETAIL_QUERY_PARAM = "game"
 
 
-def render_game_listing(df, reviews_data=None):
+def render_game_listing(df, reviews_data=None, dlcs_data=None):
     st.title("Steam Game Storefront")
     st.markdown(
         "Browse every game as a product card, then narrow the catalog with filters."
@@ -43,7 +43,7 @@ def render_game_listing(df, reviews_data=None):
                 st.rerun()
             return
 
-        _render_game_details(selected_game, reviews_data)
+        _render_game_details(selected_game, reviews_data, dlcs_data)
         return
 
     filters = _render_filters(games)
@@ -375,7 +375,7 @@ def _build_card_html(game):
     """
 
 
-def _render_game_details(game, reviews_data=None):
+def _render_game_details(game, reviews_data=None, dlcs_data=None):
     if st.button("Back to game listing", key="back_to_game_listing"):
         _clear_selected_game()
         st.rerun()
@@ -475,6 +475,7 @@ def _render_game_details(game, reviews_data=None):
             f'<div class="game-detail__panel">{fact_html}</div>',
             unsafe_allow_html=True,
         )
+        _render_dlc_list(game, dlcs_data)
         _render_external_links(game)
 
     _render_detail_chips(
@@ -584,6 +585,29 @@ def _render_detail_chips(title, values, max_items=None):
     )
 
 
+def _render_dlc_list(game, dlcs_data):
+    dlcs = _get_dlcs_for_game(game, dlcs_data)
+
+    st.markdown(
+        '<h4 class="game-detail__section-title">DLC List</h4>',
+        unsafe_allow_html=True,
+    )
+    if dlcs.empty:
+        st.markdown(
+            '<div class="game-detail__panel game-dlc__empty">'
+            "No DLC records are available for this game.</div>",
+            unsafe_allow_html=True,
+        )
+        return
+
+    dlcs = _prepare_dlcs_for_display(dlcs)
+    items_html = "".join(_build_dlc_item_html(dlc) for _, dlc in dlcs.iterrows())
+    st.markdown(
+        f'<div class="game-detail__panel game-dlc__list">{items_html}</div>',
+        unsafe_allow_html=True,
+    )
+
+
 def _render_external_links(game):
     game_url = _safe_url(game.get("url", ""))
     website_url = _safe_url(game.get("website", ""))
@@ -608,6 +632,79 @@ def _render_external_links(game):
     st.markdown(
         f'<div class="game-detail__links">{"".join(links)}</div>',
         unsafe_allow_html=True,
+    )
+
+
+def _get_dlcs_for_game(game, dlcs_data):
+    if (
+        dlcs_data is None
+        or dlcs_data.empty
+        or "parent_app_id" not in dlcs_data.columns
+    ):
+        return pd.DataFrame()
+
+    game_id = _normalize_listing_id(game.get("app_id"))
+    if not game_id:
+        game_id = _normalize_listing_id(game.get("_listing_id"))
+    if not game_id:
+        return pd.DataFrame()
+
+    parent_ids = dlcs_data["parent_app_id"].apply(_normalize_listing_id)
+    return dlcs_data[parent_ids == game_id].copy()
+
+
+def _prepare_dlcs_for_display(dlcs):
+    prepared = dlcs.copy()
+
+    if "price" in prepared.columns:
+        prepared["_price_numeric"] = pd.to_numeric(
+            prepared["price"], errors="coerce"
+        ).fillna(0)
+    else:
+        prepared["_price_numeric"] = 0
+
+    if "release_date" in prepared.columns:
+        prepared["_release_date_sort"] = pd.to_datetime(
+            prepared["release_date"], errors="coerce"
+        )
+    else:
+        prepared["_release_date_sort"] = pd.NaT
+
+    sort_columns = [
+        column
+        for column in ["_release_date_sort", "_price_numeric", "name"]
+        if column in prepared.columns
+    ]
+    if sort_columns:
+        prepared = prepared.sort_values(
+            sort_columns,
+            ascending=[False if column != "name" else True for column in sort_columns],
+            na_position="last",
+        )
+
+    return prepared
+
+
+def _build_dlc_item_html(dlc):
+    name = _safe_text(_clean_display_value(dlc.get("name", "")) or "Untitled DLC")
+    price = _format_price(dlc.get("_price_numeric", dlc.get("price")))
+    release = _format_value_release(dlc.get("release_date"))
+    app_id = _normalize_listing_id(dlc.get("app_id"))
+    dlc_url = _safe_url(dlc.get("url", ""))
+    if not dlc_url and app_id:
+        dlc_url = f"https://store.steampowered.com/app/{quote(app_id, safe='')}/"
+
+    link_html = (
+        f'<a href="{dlc_url}" target="_blank" rel="noopener noreferrer">Open</a>'
+        if dlc_url
+        else '<span>No link</span>'
+    )
+
+    return (
+        '<div class="game-dlc__item">'
+        f'<div><strong>{name}</strong><span>{release}</span></div>'
+        f'<div><strong>{price}</strong>{link_html}</div>'
+        '</div>'
     )
 
 
@@ -1060,6 +1157,61 @@ def _inject_listing_css():
             text-align: right;
         }
 
+        .game-detail__section-title {
+            color: #e2e8f0;
+            font-size: 1rem;
+            margin: 1rem 0 0.55rem;
+        }
+
+        .game-dlc__empty {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .game-dlc__list {
+            display: grid;
+            gap: 0.65rem;
+            max-height: 360px;
+            overflow-y: auto;
+        }
+
+        .game-dlc__item {
+            align-items: center;
+            background: rgba(255, 255, 255, 0.055);
+            border: 1px solid rgba(148, 163, 184, 0.14);
+            border-radius: 14px;
+            display: grid;
+            gap: 0.6rem;
+            grid-template-columns: 1.4fr 0.7fr;
+            padding: 0.7rem;
+        }
+
+        .game-dlc__item strong {
+            color: #f8fafc;
+            display: block;
+            font-size: 0.9rem;
+        }
+
+        .game-dlc__item span {
+            color: #94a3b8;
+            display: block;
+            font-size: 0.78rem;
+            margin-top: 0.18rem;
+        }
+
+        .game-dlc__item div:last-child {
+            text-align: right;
+        }
+
+        .game-dlc__item a {
+            color: #7dd3fc !important;
+            display: inline-block;
+            font-size: 0.78rem;
+            font-weight: 800;
+            margin-top: 0.2rem;
+            text-decoration: none !important;
+        }
+
         .game-detail__links {
             display: grid;
             gap: 0.7rem;
@@ -1325,6 +1477,13 @@ def _format_full_release(game):
             return release_date.strftime("%b %d, %Y")
 
     return _format_release(game)
+
+
+def _format_value_release(value):
+    release_date = pd.to_datetime(value, errors="coerce")
+    if pd.notna(release_date):
+        return release_date.strftime("%b %d, %Y")
+    return "Release date unknown"
 
 
 def _safe_text(value):
