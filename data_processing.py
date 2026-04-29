@@ -8,7 +8,6 @@ from pymongo import MongoClient
 from pymongo.errors import PyMongoError, ServerSelectionTimeoutError
 from sklearn.preprocessing import LabelEncoder
 
-
 DEFAULT_COLLECTIONS = {
     "games": ("cleaned_games_data", "games", "games_data", "cleaned_games"),
     "dlcs": ("cleaned_DLCS_data", "cleaned_dlcs_data", "dlcs", "dlc"),
@@ -89,7 +88,9 @@ def get_public_ip():
 
 
 @st.cache_data(show_spinner="Loading data from MongoDB...", ttl=600)
-def load_mongodb_data(uri, database, games_collection, dlcs_collection, reviews_collection):
+def load_mongodb_data(
+    uri, database, games_collection, dlcs_collection, reviews_collection
+):
     if not uri:
         raise ValueError(
             "MongoDB URI is missing. Set MONGODB_URI, .streamlit/secrets.toml, "
@@ -180,10 +181,6 @@ def load_dashboard_data():
     dlcs_data = result["dlcs_data"]
     reviews_data = result["reviews_data"]
 
-    if hasattr(st, "toast"):
-        st.toast("Data loaded from MongoDB")
-    else:
-        st.success("Data loaded from MongoDB")
     return games_data, dlcs_data, reviews_data
 
 
