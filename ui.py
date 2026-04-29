@@ -4,14 +4,7 @@ import streamlit as st
 
 PAGE_OPTIONS = [
     "Game Listing",
-    "Overview & Summary",
-    "Tag Analysis",
-    "Profit Analysis",
-    "Genre Analysis",
-    "Release Trends",
-    "Language & Categories",
-    "DLC Impact",
-    "ML Model Trainer",
+    "Analytics",
 ]
 
 

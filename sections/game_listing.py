@@ -1,6 +1,7 @@
 import math
 import re
 from html import escape
+from urllib.parse import quote
 
 import pandas as pd
 import streamlit as st
@@ -16,8 +17,10 @@ SORT_OPTIONS = {
     "Name: A to Z": ("name", True),
 }
 
+DETAIL_QUERY_PARAM = "game"
 
-def render_game_listing(df):
+
+def render_game_listing(df, reviews_data=None):
     st.title("Steam Game Storefront")
     st.markdown(
         "Browse every game as a product card, then narrow the catalog with filters."
@@ -30,6 +33,19 @@ def render_game_listing(df):
     _inject_listing_css()
 
     games = _prepare_listing_dataframe(df)
+    selected_game_id = _get_selected_game_id()
+    if selected_game_id:
+        selected_game = _find_game_by_listing_id(games, selected_game_id)
+        if selected_game is None:
+            st.warning("That game could not be found.")
+            if st.button("Back to game listing"):
+                _clear_selected_game()
+                st.rerun()
+            return
+
+        _render_game_details(selected_game, reviews_data)
+        return
+
     filters = _render_filters(games)
     filtered_games = _filter_games(games, filters)
     filtered_games = _sort_games(filtered_games, filters["sort_by"])
@@ -60,6 +76,11 @@ def render_game_listing(df):
 
 def _prepare_listing_dataframe(df):
     games = df.copy()
+    listing_ids = []
+    for index, row in games.iterrows():
+        listing_id = _normalize_listing_id(row.get("app_id"))
+        listing_ids.append(listing_id or _normalize_listing_id(index))
+    games["_listing_id"] = listing_ids
 
     if "price" in games.columns:
         games["price_numeric"] = pd.to_numeric(games["price"], errors="coerce").fillna(0)
@@ -181,7 +202,13 @@ def _filter_games(games, filters):
     if filters["search"]:
         search_columns = [
             column
-            for column in ["name", "short_description", "developers", "publishers"]
+            for column in [
+                "name",
+                "short_description",
+                "description",
+                "developers",
+                "publishers",
+            ]
             if column in filtered.columns
         ]
         if search_columns:
@@ -284,8 +311,7 @@ def _build_card_html(game):
         _truncate_text(game.get("short_description", ""), max_length=150)
     )
     image = _safe_url(game.get("header_image", ""))
-    game_url = _safe_url(game.get("url", ""))
-    website_url = _safe_url(game.get("website", ""))
+    details_url = _build_details_url(game)
     release = _format_release(game)
     price = _format_price(game.get("price_numeric", game.get("price")))
     reviews = _format_count(game.get("reviews_numeric", game.get("total_reviews")))
@@ -297,7 +323,6 @@ def _build_card_html(game):
     primary_genre = _safe_text(_first_value(game.get("genres", "")))
     primary_tag = _safe_text(_first_value(game.get("tag", "")))
     review_summary = _safe_text(game.get("review_summary", ""))
-    link_url = game_url or website_url
 
     image_html = (
         f'<img class="game-card__image" src="{image}" alt="{name} cover">'
@@ -323,12 +348,7 @@ def _build_card_html(game):
         if review_summary
         else ""
     )
-    action_html = (
-        f'<a class="game-card__action" href="{link_url}" target="_blank" '
-        'rel="noopener noreferrer">View Game</a>'
-        if link_url
-        else '<span class="game-card__action game-card__action--disabled">No Link</span>'
-    )
+    action_html = f'<a class="game-card__action" href="{details_url}">Open Details</a>'
 
     return f"""
     <article class="game-card">
@@ -353,6 +373,400 @@ def _build_card_html(game):
         </div>
     </article>
     """
+
+
+def _render_game_details(game, reviews_data=None):
+    if st.button("Back to game listing", key="back_to_game_listing"):
+        _clear_selected_game()
+        st.rerun()
+
+    name = _safe_text(game.get("name", "Untitled game"))
+    image = _safe_url(game.get("header_image", ""))
+    price = _format_price(game.get("price_numeric", game.get("price")))
+    reviews = _format_count(game.get("reviews_numeric", game.get("total_reviews")))
+    positive_score = _format_percent(
+        game.get("positive_pct_numeric", game.get("positive_pct"))
+    )
+    release = _format_full_release(game)
+    review_summary = _safe_text(game.get("review_summary", ""))
+    app_id = _safe_text(_clean_display_value(game.get("app_id", "")))
+    developer = _safe_text(_first_value(game.get("developers", "")) or "Unknown")
+    publisher = _safe_text(_first_value(game.get("publishers", "")) or "Unknown")
+    primary_genre = _safe_text(_first_value(game.get("genres", "")) or "Game")
+    primary_tag = _safe_text(_first_value(game.get("tag", "")) or "Steam catalog")
+    short_description_value = game.get("short_description", "")
+    description_value = game.get("description", "")
+    if not _has_display_value(description_value):
+        description_value = short_description_value
+    hero_description_value = (
+        short_description_value
+        if _has_display_value(short_description_value)
+        else _truncate_text(_plain_text(description_value), max_length=220)
+    )
+    hero_description = _safe_text(_plain_text(hero_description_value))
+    description = _safe_text(_plain_text(description_value))
+    if not hero_description:
+        hero_description = "Product details, reviews, tags, and external links."
+    if not description:
+        description = "No product description is available for this game."
+
+    image_html = (
+        f'<img class="game-detail__image" src="{image}" alt="{name} cover">'
+        if image
+        else '<div class="game-detail__image game-detail__image--empty">No image</div>'
+    )
+    review_html = (
+        f'<div class="game-detail__review">{review_summary}</div>'
+        if review_summary
+        else ""
+    )
+
+    st.markdown(
+        f"""
+        <section class="game-detail">
+            <div class="game-detail__visual">{image_html}</div>
+            <div class="game-detail__content">
+                <div class="game-detail__eyebrow">{primary_genre} / {primary_tag}</div>
+                <h1>{name}</h1>
+                <p>{hero_description}</p>
+                {review_html}
+            </div>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    metrics = st.columns(4)
+    metrics[0].metric("Price", price)
+    metrics[1].metric("Positive Score", positive_score)
+    metrics[2].metric("Reviews", reviews)
+    metrics[3].metric("Release", release)
+
+    detail_cols = st.columns([1.5, 1])
+    with detail_cols[0]:
+        st.subheader("About this game")
+        st.markdown(
+            f"""
+            <div class="game-detail__panel">
+                <p>{description}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        _render_detail_chips("Genres", _as_list(game.get("genres", "")))
+        _render_detail_chips("Tags", _as_list(game.get("tag", "")))
+        _render_detail_chips("Categories", _as_list(game.get("categories", "")))
+
+    with detail_cols[1]:
+        st.subheader("Product details")
+        fact_html = _build_fact_list(
+            [
+                ("App ID", app_id or "N/A"),
+                ("Developer", developer),
+                ("Publisher", publisher),
+                ("Released", release),
+                ("Total Positive", _format_count(game.get("total_positive"))),
+                ("Total Negative", _format_count(game.get("total_negative"))),
+                ("DLC Count", _format_count(game.get("dlc_count"))),
+                ("DLC Value", _format_price(game.get("total_dlc_price"))),
+            ]
+        )
+        st.markdown(
+            f'<div class="game-detail__panel">{fact_html}</div>',
+            unsafe_allow_html=True,
+        )
+        _render_external_links(game)
+
+    _render_detail_chips(
+        "Supported languages",
+        _as_list(game.get("supported_languages", "")),
+        max_items=16,
+    )
+    _render_game_reviews(game, reviews_data)
+
+
+def _render_game_reviews(game, reviews_data):
+    st.markdown("---")
+    st.subheader("Game reviews")
+
+    reviews = _get_reviews_for_game(game, reviews_data)
+    if reviews.empty:
+        st.info("No review rows are available for this game.")
+        return
+
+    reviews = _prepare_reviews_for_display(reviews)
+    positive_count = int(reviews["is_positive_review"].sum())
+    negative_count = int(reviews["is_negative_review"].sum())
+    unknown_count = int(len(reviews) - positive_count - negative_count)
+
+    cols = st.columns(4)
+    cols[0].metric("Loaded Reviews", f"{len(reviews):,}")
+    cols[1].metric("Recommended", f"{positive_count:,}")
+    cols[2].metric("Not Recommended", f"{negative_count:,}")
+    cols[3].metric("Unknown", f"{unknown_count:,}")
+
+    game_key = _normalize_listing_id(game.get("_listing_id"))
+    controls = st.columns([1, 1, 2])
+    with controls[0]:
+        recommendation_filter = st.selectbox(
+            "Review filter",
+            ["All", "Recommended", "Not Recommended", "Unknown"],
+            key=f"review_filter_{game_key}",
+        )
+    with controls[1]:
+        review_limit = st.selectbox(
+            "Show reviews",
+            [5, 10, 20, 50],
+            index=1,
+            key=f"review_limit_{game_key}",
+        )
+    with controls[2]:
+        search_text = st.text_input(
+            "Search reviews",
+            placeholder="Search review text",
+            key=f"review_search_{game_key}",
+        )
+
+    visible_reviews = reviews.copy()
+    if recommendation_filter == "Recommended":
+        visible_reviews = visible_reviews[visible_reviews["is_positive_review"]]
+    elif recommendation_filter == "Not Recommended":
+        visible_reviews = visible_reviews[visible_reviews["is_negative_review"]]
+    elif recommendation_filter == "Unknown":
+        visible_reviews = visible_reviews[
+            ~visible_reviews["is_positive_review"]
+            & ~visible_reviews["is_negative_review"]
+        ]
+
+    if search_text.strip() and "review_text" in visible_reviews.columns:
+        query = search_text.strip().casefold()
+        visible_reviews = visible_reviews[
+            visible_reviews["review_text"]
+            .fillna("")
+            .astype(str)
+            .str.casefold()
+            .str.contains(query, regex=False)
+        ]
+
+    if visible_reviews.empty:
+        st.warning("No reviews match the selected review filters.")
+        return
+
+    for _, review in visible_reviews.head(review_limit).iterrows():
+        st.markdown(_build_review_card_html(review), unsafe_allow_html=True)
+
+    remaining = len(visible_reviews) - min(review_limit, len(visible_reviews))
+    if remaining > 0:
+        st.caption(f"{remaining:,} more matching reviews are available.")
+
+
+def _render_detail_chips(title, values, max_items=None):
+    if not values:
+        return
+
+    shown_values = values[:max_items] if max_items else values
+    chips = "".join(
+        f'<span class="game-detail__chip">{_safe_text(value)}</span>'
+        for value in shown_values
+    )
+    overflow = ""
+    if max_items and len(values) > max_items:
+        overflow = f'<span class="game-detail__chip">+{len(values) - max_items} more</span>'
+
+    st.markdown(
+        f"""
+        <div class="game-detail__chip-group">
+            <h4>{_safe_text(title)}</h4>
+            <div>{chips}{overflow}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def _render_external_links(game):
+    game_url = _safe_url(game.get("url", ""))
+    website_url = _safe_url(game.get("website", ""))
+    links = []
+
+    if game_url:
+        links.append(
+            f'<a class="game-detail__link" href="{game_url}" target="_blank" '
+            'rel="noopener noreferrer">Open Steam page</a>'
+        )
+    if website_url and website_url != game_url:
+        links.append(
+            f'<a class="game-detail__link game-detail__link--secondary" '
+            f'href="{website_url}" target="_blank" rel="noopener noreferrer">'
+            "Official website</a>"
+        )
+
+    if not links:
+        st.caption("No external product links are available.")
+        return
+
+    st.markdown(
+        f'<div class="game-detail__links">{"".join(links)}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def _build_fact_list(facts):
+    return "".join(
+        f'<div class="game-detail__fact">'
+        f"<span>{_safe_text(label)}</span>"
+        f"<strong>{value}</strong>"
+        f"</div>"
+        for label, value in facts
+    )
+
+
+def _get_reviews_for_game(game, reviews_data):
+    if reviews_data is None or reviews_data.empty:
+        return pd.DataFrame()
+
+    game_id = _normalize_listing_id(game.get("app_id"))
+    if not game_id:
+        game_id = _normalize_listing_id(game.get("_listing_id"))
+    if not game_id:
+        return pd.DataFrame()
+
+    review_id_columns = [
+        column
+        for column in ["parent_app_id", "app_id", "app_id_game"]
+        if column in reviews_data.columns
+    ]
+    for column in review_id_columns:
+        review_ids = reviews_data[column].apply(_normalize_listing_id)
+        matches = reviews_data[review_ids == game_id]
+        if not matches.empty:
+            return matches.copy()
+
+    return pd.DataFrame()
+
+
+def _prepare_reviews_for_display(reviews):
+    prepared = reviews.copy()
+
+    if "review_text" in prepared.columns:
+        prepared["review_text"] = prepared["review_text"].fillna("").astype(str)
+    else:
+        prepared["review_text"] = ""
+
+    prepared["review_sentiment"] = prepared.apply(_review_sentiment, axis=1)
+    prepared["is_positive_review"] = prepared["review_sentiment"] == "positive"
+    prepared["is_negative_review"] = prepared["review_sentiment"] == "negative"
+
+    sort_columns = [
+        column
+        for column in ["votes_up", "total_playtime_hours", "playtime_at_review_hours"]
+        if column in prepared.columns
+    ]
+    for column in sort_columns:
+        prepared[column] = pd.to_numeric(prepared[column], errors="coerce").fillna(0)
+
+    if sort_columns:
+        prepared = prepared.sort_values(sort_columns, ascending=False)
+
+    return prepared
+
+
+def _review_sentiment(review):
+    for column in ["recommendation", "review_score"]:
+        if column not in review.index:
+            continue
+
+        value = review.get(column)
+        if value is None or (isinstance(value, float) and pd.isna(value)):
+            continue
+
+        normalized = str(value).strip().casefold()
+        if normalized in {"true", "1", "yes", "recommended", "positive"}:
+            return "positive"
+        if normalized in {"false", "0", "no", "not recommended", "negative"}:
+            return "negative"
+
+    return "unknown"
+
+
+def _build_review_card_html(review):
+    sentiment = review.get("review_sentiment", "unknown")
+    if sentiment == "positive":
+        verdict = "Recommended"
+        verdict_class = "game-review__verdict--positive"
+    elif sentiment == "negative":
+        verdict = "Not Recommended"
+        verdict_class = "game-review__verdict--negative"
+    else:
+        verdict = "Review"
+        verdict_class = "game-review__verdict--unknown"
+    review_text = _safe_text(
+        _truncate_text(_plain_text(review.get("review_text", "")), max_length=850)
+    )
+    if not review_text:
+        review_text = "No written review text is available for this review row."
+
+    votes = _format_count(review.get("votes_up"))
+    playtime = _format_hours(review.get("total_playtime_hours"))
+    review_playtime = _format_hours(review.get("playtime_at_review_hours"))
+    steam_purchase = _format_review_flag(review.get("steam_purchase"))
+    early_access = _format_review_flag(review.get("written_during_early_access"))
+
+    return f"""
+    <article class="game-review">
+        <div class="game-review__topline">
+            <span class="game-review__verdict {verdict_class}">{verdict}</span>
+            <span>{votes} helpful votes</span>
+        </div>
+        <p>{review_text}</p>
+        <div class="game-review__meta">
+            <span>Total playtime: <strong>{playtime}</strong></span>
+            <span>At review: <strong>{review_playtime}</strong></span>
+            <span>Steam purchase: <strong>{steam_purchase}</strong></span>
+            <span>Early access: <strong>{early_access}</strong></span>
+        </div>
+    </article>
+    """
+
+
+def _get_selected_game_id():
+    query_value = None
+    try:
+        query_value = st.query_params.get(DETAIL_QUERY_PARAM)
+    except Exception:
+        query_value = None
+
+    if isinstance(query_value, list):
+        query_value = query_value[0] if query_value else None
+
+    if query_value:
+        return _normalize_listing_id(query_value)
+
+    return st.session_state.get("selected_game_id")
+
+
+def _clear_selected_game():
+    st.session_state.pop("selected_game_id", None)
+    try:
+        if DETAIL_QUERY_PARAM in st.query_params:
+            del st.query_params[DETAIL_QUERY_PARAM]
+    except Exception:
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
+
+
+def _find_game_by_listing_id(games, listing_id):
+    matches = games[games["_listing_id"] == _normalize_listing_id(listing_id)]
+    if matches.empty:
+        return None
+    return matches.iloc[0]
+
+
+def _build_details_url(game):
+    listing_id = _normalize_listing_id(game.get("_listing_id"))
+    return f"?{DETAIL_QUERY_PARAM}={quote(listing_id, safe='')}"
 
 
 def _inject_listing_css():
@@ -510,6 +924,245 @@ def _inject_listing_css():
             background: rgba(148, 163, 184, 0.22);
             color: #cbd5e1 !important;
         }
+
+        .game-detail {
+            background:
+                radial-gradient(circle at 8% 12%, rgba(56, 189, 248, 0.24), transparent 30%),
+                linear-gradient(135deg, #0f172a 0%, #172033 52%, #111827 100%);
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: 28px;
+            box-shadow: 0 22px 60px rgba(15, 23, 42, 0.28);
+            color: #f8fafc;
+            display: grid;
+            gap: 2rem;
+            grid-template-columns: minmax(260px, 0.9fr) minmax(320px, 1.4fr);
+            margin: 1rem 0 1.5rem;
+            overflow: hidden;
+            padding: 1.25rem;
+        }
+
+        .game-detail__visual {
+            align-items: stretch;
+            display: flex;
+        }
+
+        .game-detail__image {
+            border-radius: 22px;
+            box-shadow: 0 18px 45px rgba(2, 6, 23, 0.36);
+            min-height: 320px;
+            object-fit: cover;
+            width: 100%;
+        }
+
+        .game-detail__image--empty {
+            align-items: center;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.28), transparent 30%),
+                linear-gradient(135deg, #172033, #0f172a);
+            color: #94a3b8;
+            display: flex;
+            font-weight: 800;
+            justify-content: center;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .game-detail__content {
+            align-self: center;
+            padding: 1rem 0.5rem;
+        }
+
+        .game-detail__content h1 {
+            color: #f8fafc;
+            font-size: clamp(2rem, 4vw, 4rem);
+            line-height: 0.98;
+            margin: 0.35rem 0 1rem;
+        }
+
+        .game-detail__content p,
+        .game-detail__panel p {
+            color: #cbd5e1;
+            font-size: 1rem;
+            line-height: 1.65;
+            margin: 0;
+        }
+
+        .game-detail__eyebrow {
+            color: #7dd3fc;
+            font-size: 0.8rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .game-detail__review {
+            background: rgba(15, 23, 42, 0.56);
+            border-left: 4px solid #22c55e;
+            border-radius: 14px;
+            color: #dcfce7;
+            font-weight: 700;
+            margin-top: 1rem;
+            padding: 0.75rem 0.9rem;
+        }
+
+        .game-detail__panel {
+            background: rgba(15, 23, 42, 0.58);
+            border: 1px solid rgba(148, 163, 184, 0.18);
+            border-radius: 20px;
+            margin-bottom: 1rem;
+            padding: 1rem;
+        }
+
+        .game-detail__chip-group {
+            margin: 1rem 0;
+        }
+
+        .game-detail__chip-group h4 {
+            color: #e2e8f0;
+            margin: 0 0 0.6rem;
+        }
+
+        .game-detail__chip {
+            background: rgba(56, 189, 248, 0.13);
+            border: 1px solid rgba(125, 211, 252, 0.28);
+            border-radius: 999px;
+            color: #bae6fd;
+            display: inline-flex;
+            font-size: 0.82rem;
+            font-weight: 700;
+            margin: 0 0.4rem 0.45rem 0;
+            padding: 0.32rem 0.7rem;
+        }
+
+        .game-detail__fact {
+            border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+            display: grid;
+            gap: 0.4rem;
+            grid-template-columns: 0.9fr 1.1fr;
+            padding: 0.68rem 0;
+        }
+
+        .game-detail__fact:first-child {
+            padding-top: 0;
+        }
+
+        .game-detail__fact:last-child {
+            border-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .game-detail__fact span {
+            color: #94a3b8;
+        }
+
+        .game-detail__fact strong {
+            color: #f8fafc;
+            text-align: right;
+        }
+
+        .game-detail__links {
+            display: grid;
+            gap: 0.7rem;
+        }
+
+        .game-detail__link {
+            background: linear-gradient(135deg, #38bdf8, #22c55e);
+            border-radius: 14px;
+            color: #04111d !important;
+            display: block;
+            font-weight: 900;
+            padding: 0.78rem 1rem;
+            text-align: center;
+            text-decoration: none !important;
+        }
+
+        .game-detail__link--secondary {
+            background: rgba(148, 163, 184, 0.22);
+            color: #e2e8f0 !important;
+        }
+
+        .game-review {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(30, 41, 59, 0.94));
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 20px;
+            box-shadow: 0 14px 34px rgba(15, 23, 42, 0.18);
+            color: #e2e8f0;
+            margin: 0 0 1rem;
+            padding: 1rem;
+        }
+
+        .game-review__topline {
+            align-items: center;
+            color: #94a3b8;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+        }
+
+        .game-review__verdict {
+            border-radius: 999px;
+            font-size: 0.76rem;
+            font-weight: 900;
+            padding: 0.32rem 0.72rem;
+            text-transform: uppercase;
+        }
+
+        .game-review__verdict--positive {
+            background: rgba(34, 197, 94, 0.16);
+            color: #bbf7d0;
+        }
+
+        .game-review__verdict--negative {
+            background: rgba(248, 113, 113, 0.16);
+            color: #fecaca;
+        }
+
+        .game-review__verdict--unknown {
+            background: rgba(148, 163, 184, 0.18);
+            color: #e2e8f0;
+        }
+
+        .game-review p {
+            color: #dbeafe;
+            line-height: 1.58;
+            margin: 0 0 0.95rem;
+        }
+
+        .game-review__meta {
+            display: grid;
+            gap: 0.5rem;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .game-review__meta span {
+            background: rgba(255, 255, 255, 0.055);
+            border-radius: 12px;
+            color: #94a3b8;
+            font-size: 0.78rem;
+            padding: 0.5rem;
+        }
+
+        .game-review__meta strong {
+            color: #f8fafc;
+            display: block;
+            margin-top: 0.12rem;
+        }
+
+        @media (max-width: 900px) {
+            .game-detail {
+                grid-template-columns: 1fr;
+            }
+
+            .game-detail__image {
+                min-height: 220px;
+            }
+
+            .game-review__meta {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -551,6 +1204,20 @@ def _as_list(value):
     return cleaned_values
 
 
+def _normalize_listing_id(value):
+    if value is None:
+        return ""
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value).strip()
+
+
 def _first_value(value):
     values = _as_list(value)
     return values[0] if values else ""
@@ -564,6 +1231,34 @@ def _truncate_text(value, max_length):
     if len(text) <= max_length:
         return text
     return f"{text[: max_length - 1].rstrip()}..."
+
+
+def _plain_text(value):
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+
+    text = re.sub(r"<[^>]+>", " ", str(value))
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _clean_display_value(value):
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def _has_display_value(value):
+    if value is None:
+        return False
+    try:
+        if pd.isna(value):
+            return False
+    except (TypeError, ValueError):
+        pass
+
+    return str(value).strip().casefold() not in {"", "nan", "none"}
 
 
 def _format_price(value):
@@ -589,6 +1284,27 @@ def _format_percent(value):
     return f"{numeric_value:.0f}%"
 
 
+def _format_hours(value):
+    numeric_value = pd.to_numeric(pd.Series([value]), errors="coerce").iloc[0]
+    if pd.isna(numeric_value) or numeric_value == 0:
+        return "N/A"
+    return f"{numeric_value:,.1f}h"
+
+
+def _format_review_flag(value):
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return "N/A"
+
+    normalized = str(value).strip().casefold()
+    if normalized in {"true", "1", "yes"}:
+        return "Yes"
+    if normalized in {"false", "0", "no"}:
+        return "No"
+    if normalized in {"nan", "none", ""}:
+        return "N/A"
+    return str(value)
+
+
 def _format_release(game):
     if "release_date" in game.index and pd.notna(game.get("release_date")):
         release_date = pd.to_datetime(game.get("release_date"), errors="coerce")
@@ -600,6 +1316,15 @@ def _format_release(game):
         return str(int(year))
 
     return "Unknown"
+
+
+def _format_full_release(game):
+    if "release_date" in game.index and pd.notna(game.get("release_date")):
+        release_date = pd.to_datetime(game.get("release_date"), errors="coerce")
+        if pd.notna(release_date):
+            return release_date.strftime("%b %d, %Y")
+
+    return _format_release(game)
 
 
 def _safe_text(value):

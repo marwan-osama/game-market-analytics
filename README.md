@@ -4,16 +4,9 @@ An interactive Streamlit dashboard that replicates the analyses from the origina
 
 ## Overview
 
-This dashboard provides comprehensive analytics on Steam game data including:
-- **Game Listing** - Product-style game cards with search, filters, sorting, and pagination
-- **Overview & Summary** - Key metrics, price distributions, and review statistics
-- **Tag Analysis** - Most common tags, positive/negative review breakdowns, and heatmaps
-- **Profit Analysis** - Estimated profits by tag, top games by profit, and sentiment analysis
-- **Genre Analysis** - Genre distribution, positive review ratios, and profitability
-- **Release Trends** - Games released per year, price trends, and review patterns over time
-- **Languages & Categories** - Most used languages and popular game categories
-- **DLC Impact** - Analysis of how DLCs affect positive reviews
-- **ML Model Trainer** - Interactive machine learning model training and comparison
+This dashboard separates the Steam catalog experience from analytical views:
+- **Game Listing** - Product-style game cards with detail pages, reviews, search, filters, sorting, and pagination
+- **Analytics** - A separate page containing overview, tag, profit, genre, release, language, DLC, and ML analysis types
 
 ## Getting Started
 
@@ -63,7 +56,7 @@ Data is loaded from MongoDB Atlas at startup and cached for 10 minutes.
 2. **DLCs collection** (Optional) - Enables DLC impact analysis
 3. **Reviews collection** (Optional) - Enables ML models and review-derived sections
 
-Use the sidebar's **Refresh MongoDB data** button to clear the cache and reload from Atlas.
+Data is cached for faster reloads and refreshes automatically after the cache expires.
 
 ## File Structure
 
@@ -74,7 +67,8 @@ streamlit_app/
 |-- ui.py                     # Sidebar, CSS, and shared Streamlit UI helpers
 |-- .streamlit/
 |   `-- secrets.toml          # Local MongoDB connection settings
-|-- sections/                 # One render module per dashboard section
+|-- sections/                 # Game listing plus analytics render modules
+|   |-- analytics.py
 |   |-- game_listing.py
 |   |-- overview.py
 |   |-- tag_analysis.py
@@ -106,53 +100,61 @@ streamlit_app/
 - Feature importance plots for tree-based models
 - Quadrant analysis for competition vs profitability
 
-## Analysis Sections
+## App Pages
 
 ### 1. Game Listing
 - Product-style cards for browsing the Steam game catalog
+- Internal product details pages for individual games
+- Game review cards with recommendation filters and review-text search
 - Search by title, description, developer, or publisher
 - Filter by genre, tag, category, price range, release year, positive review percentage, and DLC availability
 - Sort by reviews, score, release date, price, or name
 
-### 2. Overview & Summary
+### 2. Analytics
+- A separate analytics page with an analytics type selector
+- Includes the dashboard analysis views listed below
+
+## Analytics Types
+
+### Overview & Summary
 - Total games count
 - Average price and review metrics
 - Price and review distribution histograms
 - Missing values analysis
 
-### 3. Tag Analysis
+### Tag Analysis
 - Most common game tags
 - Positive vs negative reviews by tag
 - Tag statistics heatmap
 - Tag counts with interactive filtering
 
-### 4. Profit Analysis
+### Profit Analysis
 - Estimated profit by tag (40% revenue share assumption)
 - Average profit per game by tag
 - Top games by estimated profit
 - Profit vs review sentiment scatter plot
 
-### 5. Genre Analysis
+### Genre Analysis
 - Genre distribution
 - Average positive review percentage by genre
 - Genre profitability metrics
 - Price vs reviews by genre
 
-### 6. Release Trends
+### Release Trends
 - Games released per year
 - Average price over years
 - Total reviews per year
 
-### 7. Languages & Categories
+### Languages & Categories
 - Top 15 most used languages
 - Top 10 game categories/features
 - Top 15 most reviewed games
 
-### 8. DLC Impact
+### DLC Impact
 - DLCs vs positive reviews correlation
 - Summary statistics by DLC count
 
-### 9. ML Model Trainer
+### ML Model Trainer
 - KNN, Gaussian Naive Bayes, Random Forest, Decision Tree
 - Interactive feature selection
 - Confusion matrix visualization

@@ -201,7 +201,6 @@ def preprocess_data(games_data, dlcs_data, reviews_data):
         return None, None
 
     cols_to_drop = [
-        "description",
         "total_english_reviews",
     ]
     games_clean = games_data.drop(
