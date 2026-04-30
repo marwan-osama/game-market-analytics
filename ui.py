@@ -23,7 +23,21 @@ def apply_custom_css():
         """
         <style>
         .main > div { padding-top: 2rem; }
-        .block-container { padding-top: 2rem; }
+        .block-container {
+            animation: pageFadeIn 180ms ease-out;
+            padding-top: 2rem;
+        }
+
+        @keyframes pageFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(6px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
 
         h1, h2, h3 {
             color: #1f77b4;

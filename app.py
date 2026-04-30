@@ -24,6 +24,11 @@ def render_page(page, df, merged_data, reviews_data, dlcs_data):
 def main():
     apply_custom_css()
     page = render_sidebar()
+    if page != "Game Listing":
+        st.session_state.pop("selected_game_id", None)
+        st.session_state.pop("selected_dlc_id", None)
+        if "game" in st.query_params or "dlc" in st.query_params:
+            st.query_params.clear()
 
     games_data, dlcs_data, reviews_data, game_extra_data = load_dashboard_data()
 

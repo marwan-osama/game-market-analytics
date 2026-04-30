@@ -38,9 +38,7 @@ def render_game_listing(df, reviews_data=None, dlcs_data=None):
         selected_dlc = _find_dlc_by_id(dlcs_data, selected_dlc_id)
         if selected_dlc is None:
             st.warning("That DLC could not be found.")
-            if st.button("Back to game listing"):
-                _clear_selected_dlc()
-                st.rerun()
+            st.button("Back to game listing", on_click=_clear_selected_dlc)
             return
 
         _render_dlc_details(selected_dlc, games)
@@ -51,9 +49,7 @@ def render_game_listing(df, reviews_data=None, dlcs_data=None):
         selected_game = _find_game_by_listing_id(games, selected_game_id)
         if selected_game is None:
             st.warning("That game could not be found.")
-            if st.button("Back to game listing"):
-                _clear_selected_game()
-                st.rerun()
+            st.button("Back to game listing", on_click=_clear_selected_game)
             return
 
         _render_game_details(selected_game, reviews_data, dlcs_data)
@@ -391,9 +387,11 @@ def _build_card_html(game):
 
 
 def _render_game_details(game, reviews_data=None, dlcs_data=None):
-    if st.button("Back to game listing", key="back_to_game_listing"):
-        _clear_selected_game()
-        st.rerun()
+    st.button(
+        "Back to game listing",
+        key="back_to_game_listing",
+        on_click=_clear_selected_game,
+    )
 
     name = _safe_text(game.get("name", "Untitled game"))
     image = _safe_url(game.get("header_image", ""))
@@ -515,11 +513,16 @@ def _render_dlc_details(dlc, games):
         if parent_game is not None
         else "Parent game"
     )
-    back_url = _build_details_url(parent_game) if parent_game is not None else "?"
-
-    st.markdown(
-        f'<a class="game-detail__back-link" href="{back_url}">Back to {parent_name}</a>',
-        unsafe_allow_html=True,
+    parent_listing_id = (
+        _normalize_listing_id(parent_game.get("_listing_id"))
+        if parent_game is not None
+        else ""
+    )
+    st.button(
+        f"Back to {parent_name}",
+        key="back_to_parent_game",
+        on_click=_open_parent_game_from_dlc,
+        args=(parent_listing_id,),
     )
 
     name = _safe_text(_clean_display_value(dlc.get("name", "")) or "Untitled DLC")
@@ -712,11 +715,8 @@ def _render_dlc_list(game, dlcs_data):
         return
 
     dlcs = _prepare_dlcs_for_display(dlcs)
-    items_html = "".join(_build_dlc_item_html(dlc) for _, dlc in dlcs.iterrows())
-    st.markdown(
-        f'<div class="game-dlc__list">{items_html}</div>',
-        unsafe_allow_html=True,
-    )
+    for _, dlc in dlcs.iterrows():
+        st.markdown(_build_dlc_item_html(dlc), unsafe_allow_html=True)
 
 
 def _render_external_links(game):
@@ -950,7 +950,11 @@ def _get_selected_game_id():
     if query_value:
         return _normalize_listing_id(query_value)
 
-    return st.session_state.get("selected_game_id")
+    state_value = st.session_state.get("selected_game_id")
+    if state_value:
+        return _normalize_listing_id(state_value)
+
+    return None
 
 
 def _get_selected_dlc_id():
@@ -966,14 +970,36 @@ def _get_selected_dlc_id():
     if query_value:
         return _normalize_listing_id(query_value)
 
-    return st.session_state.get("selected_dlc_id")
+    state_value = st.session_state.get("selected_dlc_id")
+    if state_value:
+        return _normalize_listing_id(state_value)
+
+    return None
+
+
+def _open_game_details(listing_id):
+    st.session_state["selected_game_id"] = _normalize_listing_id(listing_id)
+    st.session_state.pop("selected_dlc_id", None)
+
+
+def _open_dlc_details(dlc_id):
+    st.session_state["selected_dlc_id"] = _normalize_listing_id(dlc_id)
+
+
+def _open_parent_game_from_dlc(listing_id):
+    _clear_selected_dlc()
+    if listing_id:
+        _open_game_details(listing_id)
 
 
 def _clear_selected_game():
     st.session_state.pop("selected_game_id", None)
+    st.session_state.pop("selected_dlc_id", None)
     try:
         if DETAIL_QUERY_PARAM in st.query_params:
             del st.query_params[DETAIL_QUERY_PARAM]
+        if DLC_DETAIL_QUERY_PARAM in st.query_params:
+            del st.query_params[DLC_DETAIL_QUERY_PARAM]
     except Exception:
         try:
             st.query_params.clear()
@@ -1166,21 +1192,29 @@ def _inject_listing_css():
             color: #e2e8f0;
         }
 
-        .game-card__action {
+        .game-card__action,
+        div[data-testid="stButton"] > button {
             background: linear-gradient(135deg, #38bdf8, #22c55e);
+            border: 0;
             border-radius: 13px;
             color: #04111d !important;
-            display: block;
             font-weight: 800;
-            margin-top: auto;
+            min-height: 2.75rem;
             padding: 0.68rem 0.85rem;
             text-align: center;
+            transition: transform 160ms ease, filter 160ms ease;
+        }
+
+        .game-card__action {
+            display: block;
+            margin-top: auto;
             text-decoration: none !important;
         }
 
-        .game-card__action--disabled {
-            background: rgba(148, 163, 184, 0.22);
-            color: #cbd5e1 !important;
+        .game-card__action:hover,
+        div[data-testid="stButton"] > button:hover {
+            filter: brightness(1.05);
+            transform: translateY(-1px);
         }
 
         .game-detail {
@@ -1230,14 +1264,6 @@ def _inject_listing_css():
             background:
                 radial-gradient(circle at 8% 12%, rgba(251, 191, 36, 0.2), transparent 30%),
                 linear-gradient(135deg, #111827 0%, #1f2937 52%, #0f172a 100%);
-        }
-
-        .game-detail__back-link {
-            color: #7dd3fc !important;
-            display: inline-block;
-            font-weight: 800;
-            margin: 0.4rem 0 0.5rem;
-            text-decoration: none !important;
         }
 
         .game-detail__content {
@@ -1372,6 +1398,7 @@ def _inject_listing_css():
             display: grid;
             gap: 0.6rem;
             grid-template-columns: 1.4fr 0.7fr;
+            margin-bottom: 0.55rem;
             padding: 0.7rem;
         }
 
