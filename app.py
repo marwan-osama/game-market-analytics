@@ -25,13 +25,15 @@ def main():
     apply_custom_css()
     page = render_sidebar()
 
-    games_data, dlcs_data, reviews_data = load_dashboard_data()
+    games_data, dlcs_data, reviews_data, game_extra_data = load_dashboard_data()
 
     if games_data is None:
         show_data_load_message()
         return
 
-    df, merged_data = preprocess_data(games_data, dlcs_data, reviews_data)
+    df, merged_data = preprocess_data(
+        games_data, dlcs_data, reviews_data, game_extra_data
+    )
     render_page(page, df, merged_data, reviews_data, dlcs_data)
 
 

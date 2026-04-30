@@ -6,7 +6,6 @@ from urllib.parse import quote
 import pandas as pd
 import streamlit as st
 
-
 SORT_OPTIONS = {
     "Most reviewed": ("total_reviews", False),
     "Highest positive score": ("positive_pct", False),
@@ -18,6 +17,7 @@ SORT_OPTIONS = {
 }
 
 DETAIL_QUERY_PARAM = "game"
+DLC_DETAIL_QUERY_PARAM = "dlc"
 
 
 def render_game_listing(df, reviews_data=None, dlcs_data=None):
@@ -33,6 +33,19 @@ def render_game_listing(df, reviews_data=None, dlcs_data=None):
     _inject_listing_css()
 
     games = _prepare_listing_dataframe(df)
+    selected_dlc_id = _get_selected_dlc_id()
+    if selected_dlc_id:
+        selected_dlc = _find_dlc_by_id(dlcs_data, selected_dlc_id)
+        if selected_dlc is None:
+            st.warning("That DLC could not be found.")
+            if st.button("Back to game listing"):
+                _clear_selected_dlc()
+                st.rerun()
+            return
+
+        _render_dlc_details(selected_dlc, games)
+        return
+
     selected_game_id = _get_selected_game_id()
     if selected_game_id:
         selected_game = _find_game_by_listing_id(games, selected_game_id)
@@ -83,7 +96,9 @@ def _prepare_listing_dataframe(df):
     games["_listing_id"] = listing_ids
 
     if "price" in games.columns:
-        games["price_numeric"] = pd.to_numeric(games["price"], errors="coerce").fillna(0)
+        games["price_numeric"] = pd.to_numeric(games["price"], errors="coerce").fillna(
+            0
+        )
     else:
         games["price_numeric"] = 0
 
@@ -224,7 +239,9 @@ def _filter_games(games, filters):
 
     if filters["genres"]:
         filtered = filtered[
-            filtered["genres"].apply(lambda value: _contains_any(value, filters["genres"]))
+            filtered["genres"].apply(
+                lambda value: _contains_any(value, filters["genres"])
+            )
         ]
 
     if filters["tags"]:
@@ -254,9 +271,7 @@ def _filter_games(games, filters):
         ]
 
     if filters["min_positive"] > 0:
-        filtered = filtered[
-            filtered["positive_pct_numeric"] >= filters["min_positive"]
-        ]
+        filtered = filtered[filtered["positive_pct_numeric"] >= filters["min_positive"]]
 
     if filters["has_dlc_only"] and "dlc_count" in filtered.columns:
         dlc_count = pd.to_numeric(filtered["dlc_count"], errors="coerce").fillna(0)
@@ -286,9 +301,7 @@ def _render_listing_summary(games, filtered_games):
     filtered_total = len(filtered_games)
     free_games = int((filtered_games["price_numeric"] == 0).sum())
     avg_price = filtered_games["price_numeric"].mean() if filtered_total else 0
-    avg_score = (
-        filtered_games["positive_pct_numeric"].mean() if filtered_total else 0
-    )
+    avg_score = filtered_games["positive_pct_numeric"].mean() if filtered_total else 0
 
     cols = st.columns(4)
     cols[0].metric("Matching Games", f"{filtered_total:,}", f"of {total_games:,}")
@@ -332,7 +345,9 @@ def _build_card_html(game):
     genre_chip = (
         f'<span class="game-card__chip">{primary_genre}</span>' if primary_genre else ""
     )
-    tag_chip = f'<span class="game-card__chip">{primary_tag}</span>' if primary_tag else ""
+    tag_chip = (
+        f'<span class="game-card__chip">{primary_tag}</span>' if primary_tag else ""
+    )
     developer_html = (
         f'<p class="game-card__maker">Developer: <strong>{developer}</strong></p>'
         if developer
@@ -454,7 +469,13 @@ def _render_game_details(game, reviews_data=None, dlcs_data=None):
             unsafe_allow_html=True,
         )
         _render_detail_chips("Genres", _as_list(game.get("genres", "")))
-        _render_detail_chips("Tags", _as_list(game.get("tag", "")))
+        _render_detail_chips(
+            "Tags",
+            _unique_ordered_values(
+                _as_list(game.get("tag", ""))
+                + _as_list(game.get("user_defined_tags", ""))
+            ),
+        )
         _render_detail_chips("Categories", _as_list(game.get("categories", "")))
 
     with detail_cols[1]:
@@ -484,6 +505,94 @@ def _render_game_details(game, reviews_data=None, dlcs_data=None):
         max_items=16,
     )
     _render_game_reviews(game, reviews_data)
+
+
+def _render_dlc_details(dlc, games):
+    parent_id = _normalize_listing_id(dlc.get("parent_app_id"))
+    parent_game = _find_game_by_listing_id(games, parent_id) if parent_id else None
+    parent_name = (
+        _safe_text(parent_game.get("name", "Parent game"))
+        if parent_game is not None
+        else "Parent game"
+    )
+    back_url = _build_details_url(parent_game) if parent_game is not None else "?"
+
+    st.markdown(
+        f'<a class="game-detail__back-link" href="{back_url}">Back to {parent_name}</a>',
+        unsafe_allow_html=True,
+    )
+
+    name = _safe_text(_clean_display_value(dlc.get("name", "")) or "Untitled DLC")
+    image = _safe_url(dlc.get("header_image", ""))
+    price = _format_price(dlc.get("price"))
+    release = _format_value_release(dlc.get("release_date"))
+    app_id = _safe_text(_clean_display_value(dlc.get("app_id", "")))
+    description_value = dlc.get("description", "")
+    if not _has_display_value(description_value):
+        description_value = dlc.get("short_description", "")
+    description = _safe_text(_plain_text(description_value))
+    if not description:
+        description = "No DLC description is available."
+
+    image_html = (
+        f'<img class="game-detail__image" src="{image}" alt="{name} DLC cover">'
+        if image
+        else '<div class="game-detail__image game-detail__image--empty">DLC</div>'
+    )
+
+    st.markdown(
+        f"""
+        <section class="game-detail game-detail--dlc">
+            <div class="game-detail__visual">{image_html}</div>
+            <div class="game-detail__content">
+                <div class="game-detail__eyebrow">DLC / Add-on content</div>
+                <h1>{name}</h1>
+                <div class="game-detail__dlc-badge">This page is for DLC, not the base game</div>
+                <p>{description}</p>
+            </div>
+        </section>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    metrics = st.columns(4)
+    metrics[0].metric("Content Type", "DLC")
+    metrics[1].metric("Price", price)
+    metrics[2].metric("Release", release)
+    metrics[3].metric("Parent Game", parent_name)
+
+    detail_cols = st.columns([1.5, 1])
+    with detail_cols[0]:
+        st.subheader("About this DLC")
+        st.markdown(
+            f"""
+            <div class="game-detail__panel">
+                <p>{description}</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        _render_detail_chips("Genres", _as_list(dlc.get("genres", "")))
+        _render_detail_chips("Tags", _as_list(dlc.get("tag", "")))
+        _render_detail_chips("Categories", _as_list(dlc.get("categories", "")))
+
+    with detail_cols[1]:
+        st.subheader("DLC details")
+        fact_html = _build_fact_list(
+            [
+                ("Type", "DLC"),
+                ("DLC App ID", app_id or "N/A"),
+                ("Parent Game", parent_name),
+                ("Parent App ID", _safe_text(parent_id) or "N/A"),
+                ("Released", release),
+                ("Price", price),
+            ]
+        )
+        st.markdown(
+            f'<div class="game-detail__panel">{fact_html}</div>',
+            unsafe_allow_html=True,
+        )
+        _render_external_links(dlc)
 
 
 def _render_game_reviews(game, reviews_data):
@@ -572,7 +681,9 @@ def _render_detail_chips(title, values, max_items=None):
     )
     overflow = ""
     if max_items and len(values) > max_items:
-        overflow = f'<span class="game-detail__chip">+{len(values) - max_items} more</span>'
+        overflow = (
+            f'<span class="game-detail__chip">+{len(values) - max_items} more</span>'
+        )
 
     st.markdown(
         f"""
@@ -603,7 +714,7 @@ def _render_dlc_list(game, dlcs_data):
     dlcs = _prepare_dlcs_for_display(dlcs)
     items_html = "".join(_build_dlc_item_html(dlc) for _, dlc in dlcs.iterrows())
     st.markdown(
-        f'<div class="game-detail__panel game-dlc__list">{items_html}</div>',
+        f'<div class="game-dlc__list">{items_html}</div>',
         unsafe_allow_html=True,
     )
 
@@ -636,11 +747,7 @@ def _render_external_links(game):
 
 
 def _get_dlcs_for_game(game, dlcs_data):
-    if (
-        dlcs_data is None
-        or dlcs_data.empty
-        or "parent_app_id" not in dlcs_data.columns
-    ):
+    if dlcs_data is None or dlcs_data.empty or "parent_app_id" not in dlcs_data.columns:
         return pd.DataFrame()
 
     game_id = _normalize_listing_id(game.get("app_id"))
@@ -691,20 +798,24 @@ def _build_dlc_item_html(dlc):
     release = _format_value_release(dlc.get("release_date"))
     app_id = _normalize_listing_id(dlc.get("app_id"))
     dlc_url = _safe_url(dlc.get("url", ""))
+    details_url = _build_dlc_details_url(dlc)
     if not dlc_url and app_id:
         dlc_url = f"https://store.steampowered.com/app/{quote(app_id, safe='')}/"
 
     link_html = (
-        f'<a href="{dlc_url}" target="_blank" rel="noopener noreferrer">Open</a>'
+        f'<a class="game-dlc__steam-link" href="{dlc_url}" '
+        'target="_blank" rel="noopener noreferrer">Open Steam</a>'
         if dlc_url
-        else '<span>No link</span>'
+        else "<span>No link</span>"
     )
 
     return (
         '<div class="game-dlc__item">'
-        f'<div><strong>{name}</strong><span>{release}</span></div>'
-        f'<div><strong>{price}</strong>{link_html}</div>'
-        '</div>'
+        f"<div><strong>{name}</strong><span>DLC add-on</span><span>{release}</span></div>"
+        f"<div><strong>{price}</strong>"
+        f'<a class="game-dlc__pdp-link" href="{details_url}">View DLC</a>'
+        f"{link_html}</div>"
+        "</div>"
     )
 
 
@@ -842,11 +953,39 @@ def _get_selected_game_id():
     return st.session_state.get("selected_game_id")
 
 
+def _get_selected_dlc_id():
+    query_value = None
+    try:
+        query_value = st.query_params.get(DLC_DETAIL_QUERY_PARAM)
+    except Exception:
+        query_value = None
+
+    if isinstance(query_value, list):
+        query_value = query_value[0] if query_value else None
+
+    if query_value:
+        return _normalize_listing_id(query_value)
+
+    return st.session_state.get("selected_dlc_id")
+
+
 def _clear_selected_game():
     st.session_state.pop("selected_game_id", None)
     try:
         if DETAIL_QUERY_PARAM in st.query_params:
             del st.query_params[DETAIL_QUERY_PARAM]
+    except Exception:
+        try:
+            st.query_params.clear()
+        except Exception:
+            pass
+
+
+def _clear_selected_dlc():
+    st.session_state.pop("selected_dlc_id", None)
+    try:
+        if DLC_DETAIL_QUERY_PARAM in st.query_params:
+            del st.query_params[DLC_DETAIL_QUERY_PARAM]
     except Exception:
         try:
             st.query_params.clear()
@@ -861,9 +1000,31 @@ def _find_game_by_listing_id(games, listing_id):
     return matches.iloc[0]
 
 
+def _find_dlc_by_id(dlcs_data, dlc_id):
+    if dlcs_data is None or dlcs_data.empty or "app_id" not in dlcs_data.columns:
+        return None
+
+    matches = dlcs_data[
+        dlcs_data["app_id"].apply(_normalize_listing_id)
+        == _normalize_listing_id(dlc_id)
+    ]
+    if matches.empty:
+        return None
+    return matches.iloc[0]
+
+
 def _build_details_url(game):
     listing_id = _normalize_listing_id(game.get("_listing_id"))
     return f"?{DETAIL_QUERY_PARAM}={quote(listing_id, safe='')}"
+
+
+def _build_dlc_details_url(dlc):
+    dlc_id = _normalize_listing_id(dlc.get("app_id"))
+    parent_id = _normalize_listing_id(dlc.get("parent_app_id"))
+    query_parts = [f"{DLC_DETAIL_QUERY_PARAM}={quote(dlc_id, safe='')}"]
+    if parent_id:
+        query_parts.append(f"{DETAIL_QUERY_PARAM}={quote(parent_id, safe='')}")
+    return f"?{'&'.join(query_parts)}"
 
 
 def _inject_listing_css():
@@ -1064,6 +1225,21 @@ def _inject_listing_css():
             text-transform: uppercase;
         }
 
+        .game-detail--dlc {
+            border-color: rgba(251, 191, 36, 0.36);
+            background:
+                radial-gradient(circle at 8% 12%, rgba(251, 191, 36, 0.2), transparent 30%),
+                linear-gradient(135deg, #111827 0%, #1f2937 52%, #0f172a 100%);
+        }
+
+        .game-detail__back-link {
+            color: #7dd3fc !important;
+            display: inline-block;
+            font-weight: 800;
+            margin: 0.4rem 0 0.5rem;
+            text-decoration: none !important;
+        }
+
         .game-detail__content {
             align-self: center;
             padding: 1rem 0.5rem;
@@ -1089,6 +1265,19 @@ def _inject_listing_css():
             font-size: 0.8rem;
             font-weight: 800;
             letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .game-detail__dlc-badge {
+            background: rgba(251, 191, 36, 0.16);
+            border: 1px solid rgba(251, 191, 36, 0.34);
+            border-radius: 999px;
+            color: #fde68a;
+            display: inline-flex;
+            font-size: 0.82rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            padding: 0.38rem 0.8rem;
             text-transform: uppercase;
         }
 
@@ -1204,12 +1393,20 @@ def _inject_listing_css():
         }
 
         .game-dlc__item a {
+            text-decoration: none !important;
+        }
+
+        .game-dlc__pdp-link,
+        .game-dlc__steam-link {
             color: #7dd3fc !important;
             display: inline-block;
-            font-size: 0.78rem;
+            font-size: 0.76rem;
             font-weight: 800;
-            margin-top: 0.2rem;
-            text-decoration: none !important;
+            margin-top: 0.34rem;
+        }
+
+        .game-dlc__pdp-link {
+            margin-right: 0.55rem;
         }
 
         .game-detail__links {
@@ -1354,6 +1551,17 @@ def _as_list(value):
         if text and text.casefold() not in {"nan", "none"}:
             cleaned_values.append(text)
     return cleaned_values
+
+
+def _unique_ordered_values(values):
+    unique_values = []
+    seen = set()
+    for value in values:
+        normalized = str(value).strip().casefold()
+        if normalized and normalized not in seen:
+            unique_values.append(value)
+            seen.add(normalized)
+    return unique_values
 
 
 def _normalize_listing_id(value):

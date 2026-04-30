@@ -31,8 +31,8 @@ pip install streamlit pandas numpy plotly pymongo dnspython scikit-learn matplot
 
 3. **Configure MongoDB**:
    - The app reads MongoDB settings from `MONGODB_URI`, `.streamlit/secrets.toml`, or `~/.streamlit/secrets.toml`
-   - Optional collection overrides: `MONGODB_DATABASE`, `MONGODB_GAMES_COLLECTION`, `MONGODB_DLCS_COLLECTION`, `MONGODB_REVIEWS_COLLECTION`
-   - If collection names are blank, the app auto-detects likely games, DLC, and reviews collections
+   - Optional collection overrides: `MONGODB_DATABASE`, `MONGODB_GAMES_COLLECTION`, `MONGODB_DLCS_COLLECTION`, `MONGODB_REVIEWS_COLLECTION`, `MONGODB_GAME_EXTRA_COLLECTION`
+   - If collection names are blank, the app auto-detects likely games, DLC, reviews, and game extra collections
 
 ### Running the Dashboard
 
@@ -55,6 +55,7 @@ Data is loaded from MongoDB Atlas at startup and cached for 10 minutes.
 1. **Games collection** (Required) - Main games dataset
 2. **DLCs collection** (Optional) - Enables DLC impact analysis
 3. **Reviews collection** (Optional) - Enables ML models and review-derived sections
+4. **Game_extra_Data collection** (Optional) - Adds user-defined tags to product detail pages
 
 Data is cached for faster reloads and refreshes automatically after the cache expires.
 
@@ -106,6 +107,8 @@ streamlit_app/
 - Product-style cards for browsing the Steam game catalog
 - Internal product details pages for individual games
 - DLC list inside each product detail page when DLC records are available
+- DLC detail pages clearly labeled as DLC/add-on content
+- User-defined tags from `Game_extra_Data` merged into PDP tag chips
 - Game review cards with recommendation filters and review-text search
 - Search by title, description, developer, or publisher
 - Filter by genre, tag, category, price range, release year, positive review percentage, and DLC availability

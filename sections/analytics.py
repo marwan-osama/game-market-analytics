@@ -29,7 +29,7 @@ def render_analytics(df, merged_data):
 
     page_renderers = {
         "Overview & Summary": lambda: render_overview(df),
-        "Tag Analysis": lambda: render_tag_analysis(df),
+        "Tag Analysis": lambda: render_tag_analysis(df, merged_data),
         "Profit Analysis": lambda: render_profit_analysis(df, merged_data),
         "Genre Analysis": lambda: render_genre_analysis(df),
         "Release Trends": lambda: render_release_trends(df),

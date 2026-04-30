@@ -1,4 +1,5 @@
 import os
+import re
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -12,7 +13,31 @@ DEFAULT_COLLECTIONS = {
     "games": ("cleaned_games_data", "games", "games_data", "cleaned_games"),
     "dlcs": ("cleaned_DLCS_data", "cleaned_dlcs_data", "dlcs", "dlc"),
     "reviews": ("reviews_data_cleaned", "reviews", "reviews_data", "cleaned_reviews"),
+    "game_extra": (
+        "Game_extra_Data",
+        "game_extra_data",
+        "games_extra_data",
+        "extra_games_data",
+    ),
 }
+
+
+def split_delimited_values(value):
+    if value is None:
+        return []
+    if not isinstance(value, (list, tuple, set)) and pd.isna(value):
+        return []
+    if isinstance(value, (list, tuple, set)):
+        raw_values = value
+    else:
+        raw_values = re.split(r"[;,]", str(value))
+
+    cleaned_values = []
+    for item in raw_values:
+        text = str(item).strip().strip("[]'\"")
+        if text and text.casefold() not in {"nan", "none"}:
+            cleaned_values.append(text)
+    return cleaned_values
 
 
 def get_mongodb_config():
@@ -32,6 +57,8 @@ def get_mongodb_config():
         or secrets.get("dlcs_collection", ""),
         "reviews_collection": os.getenv("MONGODB_REVIEWS_COLLECTION")
         or secrets.get("reviews_collection", ""),
+        "game_extra_collection": os.getenv("MONGODB_GAME_EXTRA_COLLECTION")
+        or secrets.get("game_extra_collection", ""),
     }
 
 
@@ -89,7 +116,12 @@ def get_public_ip():
 
 @st.cache_data(show_spinner="Loading data from MongoDB...", ttl=600)
 def load_mongodb_data(
-    uri, database, games_collection, dlcs_collection, reviews_collection
+    uri,
+    database,
+    games_collection,
+    dlcs_collection,
+    reviews_collection,
+    game_extra_collection,
 ):
     if not uri:
         raise ValueError(
@@ -114,10 +146,14 @@ def load_mongodb_data(
     resolved_reviews_collection = resolve_collection_name(
         db, reviews_collection, DEFAULT_COLLECTIONS["reviews"]
     )
+    resolved_game_extra_collection = resolve_collection_name(
+        db, game_extra_collection, DEFAULT_COLLECTIONS["game_extra"]
+    )
 
     games_data = collection_to_dataframe(db, resolved_games_collection)
     dlcs_data = collection_to_dataframe(db, resolved_dlcs_collection)
     reviews_data = collection_to_dataframe(db, resolved_reviews_collection)
+    game_extra_data = collection_to_dataframe(db, resolved_game_extra_collection)
 
     if games_data is None or games_data.empty:
         raise ValueError(
@@ -127,6 +163,8 @@ def load_mongodb_data(
         dlcs_data = None
     if reviews_data is not None and reviews_data.empty:
         reviews_data = None
+    if game_extra_data is not None and game_extra_data.empty:
+        game_extra_data = None
 
     return {
         "database": database_name,
@@ -134,10 +172,12 @@ def load_mongodb_data(
             "games": resolved_games_collection,
             "dlcs": resolved_dlcs_collection,
             "reviews": resolved_reviews_collection,
+            "game_extra": resolved_game_extra_collection,
         },
         "games_data": games_data,
         "dlcs_data": dlcs_data,
         "reviews_data": reviews_data,
+        "game_extra_data": game_extra_data,
     }
 
 
@@ -151,6 +191,7 @@ def load_dashboard_data():
             config["games_collection"],
             config["dlcs_collection"],
             config["reviews_collection"],
+            config["game_extra_collection"],
         )
     except ServerSelectionTimeoutError as e:
         public_ip = get_public_ip()
@@ -172,16 +213,17 @@ def load_dashboard_data():
         )
         with st.expander("Connection error details"):
             st.code(str(e))
-        return None, None, None
+        return None, None, None, None
     except (PyMongoError, ValueError) as e:
         st.error(f"Could not load MongoDB data: {e}")
-        return None, None, None
+        return None, None, None, None
 
     games_data = result["games_data"]
     dlcs_data = result["dlcs_data"]
     reviews_data = result["reviews_data"]
+    game_extra_data = result["game_extra_data"]
 
-    return games_data, dlcs_data, reviews_data
+    return games_data, dlcs_data, reviews_data, game_extra_data
 
 
 def get_dataframe_summary(dataframe):
@@ -195,7 +237,7 @@ def get_dataframe_summary(dataframe):
     )
 
 
-def preprocess_data(games_data, dlcs_data, reviews_data):
+def preprocess_data(games_data, dlcs_data, reviews_data, game_extra_data=None):
     """Preprocess all datasets."""
     if games_data is None:
         return None, None
@@ -206,6 +248,29 @@ def preprocess_data(games_data, dlcs_data, reviews_data):
     games_clean = games_data.drop(
         [col for col in cols_to_drop if col in games_data.columns], axis=1
     ).copy()
+
+    if game_extra_data is not None and {"app_id", "user_defined_tags"}.issubset(
+        game_extra_data.columns
+    ):
+        user_tags = (
+            game_extra_data[["app_id", "user_defined_tags"]]
+            .drop_duplicates("app_id")
+            .rename(columns={"user_defined_tags": "extra_user_defined_tags"})
+        )
+        games_clean = games_clean.merge(user_tags, on="app_id", how="left")
+        if "user_defined_tags" in games_clean.columns:
+            games_clean["user_defined_tags"] = games_clean[
+                "user_defined_tags"
+            ].combine_first(games_clean["extra_user_defined_tags"])
+            games_clean = games_clean.drop(columns=["extra_user_defined_tags"])
+        else:
+            games_clean = games_clean.rename(
+                columns={"extra_user_defined_tags": "user_defined_tags"}
+            )
+    elif game_extra_data is not None:
+        st.warning(
+            "Game_extra_Data collection was loaded but is missing app_id or user_defined_tags."
+        )
 
     if "release_date" in games_clean.columns:
         games_clean["release_date"] = pd.to_datetime(
@@ -228,19 +293,20 @@ def preprocess_data(games_data, dlcs_data, reviews_data):
     if "tag" in games_clean.columns:
         games_clean["tag"] = games_clean["tag"].fillna("").astype(str)
         games_clean["primary_tag"] = (
-            games_clean["tag"].str.split(",").str[0].str.strip()
+            games_clean["tag"].apply(split_delimited_values).str[0]
         )
         games_clean.loc[games_clean["primary_tag"] == "", "primary_tag"] = None
 
     if "genres" in games_clean.columns:
-        games_clean["genres"] = games_clean["genres"].apply(
-            lambda x: [g.strip() for g in x.split(",")] if isinstance(x, str) else x
-        )
+        games_clean["genres"] = games_clean["genres"].apply(split_delimited_values)
 
     if "categories" in games_clean.columns:
-        games_clean["categories"] = games_clean["categories"].apply(
-            lambda x: [c.strip() for c in x.split(",")] if isinstance(x, str) else x
-        )
+        games_clean["categories"] = games_clean["categories"].apply(split_delimited_values)
+
+    if "features" in games_clean.columns:
+        games_clean["features"] = games_clean["features"].apply(split_delimited_values)
+        if "categories" not in games_clean.columns:
+            games_clean["categories"] = games_clean["features"].apply(list)
 
     if dlcs_data is not None and {"parent_app_id", "app_id", "price"}.issubset(
         dlcs_data.columns
@@ -289,18 +355,43 @@ def preprocess_data(games_data, dlcs_data, reviews_data):
             and "steam_purchase" in merged_data.columns
         ):
             purchased_data = (
-                merged_data.groupby("parent_app_id")["steam_purchase"]
+                reviews_clean.groupby("parent_app_id")["steam_purchase"]
                 .sum()
                 .reset_index()
             )
             purchased_data.columns = ["parent_app_id", "total_steam_purchases"]
-            merged_data = merged_data.merge(
-                purchased_data,
-                left_on="app_id_game",
-                right_on="parent_app_id",
+            merged_data = merged_data.merge(purchased_data, on="parent_app_id", how="left")
+
+            games_clean = games_clean.merge(
+                purchased_data.rename(
+                    columns={"parent_app_id": "purchase_parent_app_id"}
+                ),
+                left_on="app_id",
+                right_on="purchase_parent_app_id",
                 how="left",
+            )
+            games_clean = games_clean.drop(
+                columns=["purchase_parent_app_id"], errors="ignore"
             )
     elif reviews_data is not None:
         st.warning("Reviews collection was loaded but is missing parent_app_id.")
+
+    if "total_steam_purchases" in games_clean.columns:
+        games_clean["total_steam_purchases"] = pd.to_numeric(
+            games_clean["total_steam_purchases"], errors="coerce"
+        ).fillna(0)
+
+    if review_cols.issubset(games_clean.columns):
+        total_reviews = games_clean["total_reviews"].where(
+            games_clean["total_reviews"] != 0
+        )
+        games_clean["positive_ratio"] = games_clean["total_positive"].div(total_reviews)
+
+    if {"price", "total_steam_purchases"}.issubset(games_clean.columns):
+        games_clean["Profit"] = (
+            pd.to_numeric(games_clean["price"], errors="coerce").fillna(0)
+            * games_clean["total_steam_purchases"]
+            * 0.4
+        )
 
     return games_clean, merged_data
