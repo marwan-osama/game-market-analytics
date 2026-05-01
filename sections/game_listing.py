@@ -20,7 +20,7 @@ DETAIL_QUERY_PARAM = "game"
 DLC_DETAIL_QUERY_PARAM = "dlc"
 
 
-def render_game_listing(df, reviews_data=None, dlcs_data=None):
+def render_game_listing(df, reviews_data=None, dlcs_data=None, dlc_reviews_data=None):
     st.title("Steam Game Storefront")
     st.markdown(
         "Browse every game as a product card, then narrow the catalog with filters."
@@ -41,7 +41,7 @@ def render_game_listing(df, reviews_data=None, dlcs_data=None):
             st.button("Back to game listing", on_click=_clear_selected_dlc)
             return
 
-        _render_dlc_details(selected_dlc, games, reviews_data)
+        _render_dlc_details(selected_dlc, games, dlc_reviews_data)
         return
 
     selected_game_id = _get_selected_game_id()
@@ -505,7 +505,7 @@ def _render_game_details(game, reviews_data=None, dlcs_data=None):
     _render_game_reviews(game, reviews_data)
 
 
-def _render_dlc_details(dlc, games, reviews_data=None):
+def _render_dlc_details(dlc, games, dlc_reviews_data=None):
     parent_id = _normalize_listing_id(dlc.get("parent_app_id"))
     parent_game = _find_game_by_listing_id(games, parent_id) if parent_id else None
     parent_name = (
@@ -597,12 +597,13 @@ def _render_dlc_details(dlc, games, reviews_data=None):
         )
         _render_external_links(dlc)
 
-    _render_game_reviews(dlc, reviews_data, content_type="DLC")
+    _render_game_reviews(dlc, dlc_reviews_data, content_type="DLC")
 
 
 def _render_game_reviews(game, reviews_data, content_type="game"):
     st.markdown("---")
-    st.subheader(f"{content_type.title()} reviews")
+    review_title = "DLC reviews" if content_type == "DLC" else "Game reviews"
+    st.subheader(review_title)
 
     reviews = _get_reviews_for_game(game, reviews_data)
     if reviews.empty:
@@ -846,7 +847,13 @@ def _get_reviews_for_game(game, reviews_data):
 
     review_id_columns = [
         column
-        for column in ["parent_app_id", "app_id", "app_id_game"]
+        for column in [
+            "app_id",
+            "dlc_app_id",
+            "dlc_id",
+            "parent_app_id",
+            "app_id_game",
+        ]
         if column in reviews_data.columns
     ]
     for column in review_id_columns:

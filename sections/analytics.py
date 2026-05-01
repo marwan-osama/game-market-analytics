@@ -1,5 +1,6 @@
 import streamlit as st
 
+from sections.analytics_story import render_key_findings, render_problem_description
 from sections.dlc_impact import render_dlc_impact
 from sections.genre_analysis import render_genre_analysis
 from sections.language_categories import render_language_categories
@@ -24,6 +25,7 @@ ANALYTICS_OPTIONS = [
 
 def render_analytics(df, merged_data, reviews_data=None, dlcs_data=None):
     st.caption("Analytics page")
+    render_problem_description()
     selected_analysis = st.selectbox("Choose analytics type", ANALYTICS_OPTIONS)
     st.markdown("---")
 
@@ -40,3 +42,5 @@ def render_analytics(df, merged_data, reviews_data=None, dlcs_data=None):
         "ML Model Trainer": lambda: render_ml_model_trainer(merged_data),
     }
     page_renderers[selected_analysis]()
+    st.markdown("---")
+    render_key_findings(selected_analysis)

@@ -13,9 +13,11 @@ st.set_page_config(
 )
 
 
-def render_page(page, df, merged_data, reviews_data, dlcs_data):
+def render_page(page, df, merged_data, reviews_data, dlcs_data, dlc_reviews_data):
     page_renderers = {
-        "Game Listing": lambda: render_game_listing(df, reviews_data, dlcs_data),
+        "Game Listing": lambda: render_game_listing(
+            df, reviews_data, dlcs_data, dlc_reviews_data
+        ),
         "Analytics": lambda: render_analytics(
             df, merged_data, reviews_data, dlcs_data
         ),
@@ -32,7 +34,13 @@ def main():
         if "game" in st.query_params or "dlc" in st.query_params:
             st.query_params.clear()
 
-    games_data, dlcs_data, reviews_data, game_extra_data = load_dashboard_data()
+    (
+        games_data,
+        dlcs_data,
+        reviews_data,
+        dlc_reviews_data,
+        game_extra_data,
+    ) = load_dashboard_data()
 
     if games_data is None:
         show_data_load_message()
@@ -41,7 +49,7 @@ def main():
     df, merged_data = preprocess_data(
         games_data, dlcs_data, reviews_data, game_extra_data
     )
-    render_page(page, df, merged_data, reviews_data, dlcs_data)
+    render_page(page, df, merged_data, reviews_data, dlcs_data, dlc_reviews_data)
 
 
 if __name__ == "__main__":

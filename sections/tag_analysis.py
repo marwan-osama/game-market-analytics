@@ -324,7 +324,9 @@ def _render_tag_ai_summary(df, reviews_data, dlcs_data):
     selected_tag = st.selectbox(
         "Tag to summarize",
         sorted_tags,
-        format_func=lambda tag: f"{tag} ({len(tag_contexts[tag]['reviews']):,} reviews)",
+        format_func=lambda tag: (
+            f"{tag} ({len(tag_contexts[tag]['reviews']):,} reviews)"
+        ),
         key="tag_ai_summary_selector",
     )
     context = tag_contexts[selected_tag]
@@ -336,12 +338,15 @@ def _render_tag_ai_summary(df, reviews_data, dlcs_data):
     metric_cols[3].metric("Sample Cap", f"{DEFAULT_MAX_REVIEWS:,}")
 
     openrouter_config = get_openrouter_config()
-    model = st.text_input(
-        "OpenRouter model",
-        value=openrouter_config["model"],
-        help="Default uses OpenRouter's free router model.",
-        key="tag_ai_openrouter_model",
-    ).strip() or openrouter_config["model"]
+    model = (
+        st.text_input(
+            "OpenRouter model",
+            value=openrouter_config["model"],
+            help="Default uses OpenRouter's free router model.",
+            key="tag_ai_openrouter_model",
+        ).strip()
+        or openrouter_config["model"]
+    )
 
     api_key = openrouter_config["api_key"]
     if not api_key:
@@ -360,8 +365,6 @@ def _render_tag_ai_summary(df, reviews_data, dlcs_data):
         saved_summary = get_saved_summary(selected_tag, model)
     except Exception as exc:
         st.warning(f"Could not read saved AI summaries from MongoDB: {exc}")
-
-    st.caption(f"MongoDB cache collection: `{get_summary_collection_name()}`")
 
     generate_label = (
         "Regenerate and save summary" if saved_summary else "Generate and save summary"

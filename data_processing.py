@@ -13,6 +13,14 @@ DEFAULT_COLLECTIONS = {
     "games": ("cleaned_games_data", "games", "games_data", "cleaned_games"),
     "dlcs": ("cleaned_DLCS_data", "cleaned_dlcs_data", "dlcs", "dlc"),
     "reviews": ("reviews_data_cleaned", "reviews", "reviews_data", "cleaned_reviews"),
+    "dlc_reviews": (
+        "DLC_Reviews",
+        "dlc_reviews",
+        "DLC_reviews",
+        "dlc_reviews_data",
+        "DLC_reviews_data",
+        "cleaned_dlc_reviews",
+    ),
     "game_extra": (
         "Game_extra_Data",
         "game_extra_data",
@@ -57,6 +65,8 @@ def get_mongodb_config():
         or secrets.get("dlcs_collection", ""),
         "reviews_collection": os.getenv("MONGODB_REVIEWS_COLLECTION")
         or secrets.get("reviews_collection", ""),
+        "dlc_reviews_collection": os.getenv("MONGODB_DLC_REVIEWS_COLLECTION")
+        or secrets.get("dlc_reviews_collection", ""),
         "game_extra_collection": os.getenv("MONGODB_GAME_EXTRA_COLLECTION")
         or secrets.get("game_extra_collection", ""),
     }
@@ -121,6 +131,7 @@ def load_mongodb_data(
     games_collection,
     dlcs_collection,
     reviews_collection,
+    dlc_reviews_collection,
     game_extra_collection,
 ):
     if not uri:
@@ -146,6 +157,9 @@ def load_mongodb_data(
     resolved_reviews_collection = resolve_collection_name(
         db, reviews_collection, DEFAULT_COLLECTIONS["reviews"]
     )
+    resolved_dlc_reviews_collection = resolve_collection_name(
+        db, dlc_reviews_collection, DEFAULT_COLLECTIONS["dlc_reviews"]
+    )
     resolved_game_extra_collection = resolve_collection_name(
         db, game_extra_collection, DEFAULT_COLLECTIONS["game_extra"]
     )
@@ -153,6 +167,7 @@ def load_mongodb_data(
     games_data = collection_to_dataframe(db, resolved_games_collection)
     dlcs_data = collection_to_dataframe(db, resolved_dlcs_collection)
     reviews_data = collection_to_dataframe(db, resolved_reviews_collection)
+    dlc_reviews_data = collection_to_dataframe(db, resolved_dlc_reviews_collection)
     game_extra_data = collection_to_dataframe(db, resolved_game_extra_collection)
 
     if games_data is None or games_data.empty:
@@ -163,6 +178,8 @@ def load_mongodb_data(
         dlcs_data = None
     if reviews_data is not None and reviews_data.empty:
         reviews_data = None
+    if dlc_reviews_data is not None and dlc_reviews_data.empty:
+        dlc_reviews_data = None
     if game_extra_data is not None and game_extra_data.empty:
         game_extra_data = None
 
@@ -172,11 +189,13 @@ def load_mongodb_data(
             "games": resolved_games_collection,
             "dlcs": resolved_dlcs_collection,
             "reviews": resolved_reviews_collection,
+            "dlc_reviews": resolved_dlc_reviews_collection,
             "game_extra": resolved_game_extra_collection,
         },
         "games_data": games_data,
         "dlcs_data": dlcs_data,
         "reviews_data": reviews_data,
+        "dlc_reviews_data": dlc_reviews_data,
         "game_extra_data": game_extra_data,
     }
 
@@ -191,6 +210,7 @@ def load_dashboard_data():
             config["games_collection"],
             config["dlcs_collection"],
             config["reviews_collection"],
+            config["dlc_reviews_collection"],
             config["game_extra_collection"],
         )
     except ServerSelectionTimeoutError as e:
@@ -213,17 +233,18 @@ def load_dashboard_data():
         )
         with st.expander("Connection error details"):
             st.code(str(e))
-        return None, None, None, None
+        return None, None, None, None, None
     except (PyMongoError, ValueError) as e:
         st.error(f"Could not load MongoDB data: {e}")
-        return None, None, None, None
+        return None, None, None, None, None
 
     games_data = result["games_data"]
     dlcs_data = result["dlcs_data"]
     reviews_data = result["reviews_data"]
+    dlc_reviews_data = result["dlc_reviews_data"]
     game_extra_data = result["game_extra_data"]
 
-    return games_data, dlcs_data, reviews_data, game_extra_data
+    return games_data, dlcs_data, reviews_data, dlc_reviews_data, game_extra_data
 
 
 def get_dataframe_summary(dataframe):
