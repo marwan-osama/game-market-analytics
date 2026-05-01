@@ -16,7 +16,9 @@ st.set_page_config(
 def render_page(page, df, merged_data, reviews_data, dlcs_data):
     page_renderers = {
         "Game Listing": lambda: render_game_listing(df, reviews_data, dlcs_data),
-        "Analytics": lambda: render_analytics(df, merged_data),
+        "Analytics": lambda: render_analytics(
+            df, merged_data, reviews_data, dlcs_data
+        ),
     }
     page_renderers[page]()
 

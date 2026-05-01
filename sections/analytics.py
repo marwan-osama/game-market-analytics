@@ -22,14 +22,16 @@ ANALYTICS_OPTIONS = [
 ]
 
 
-def render_analytics(df, merged_data):
+def render_analytics(df, merged_data, reviews_data=None, dlcs_data=None):
     st.caption("Analytics page")
     selected_analysis = st.selectbox("Choose analytics type", ANALYTICS_OPTIONS)
     st.markdown("---")
 
     page_renderers = {
         "Overview & Summary": lambda: render_overview(df),
-        "Tag Analysis": lambda: render_tag_analysis(df, merged_data),
+        "Tag Analysis": lambda: render_tag_analysis(
+            df, merged_data, reviews_data, dlcs_data
+        ),
         "Profit Analysis": lambda: render_profit_analysis(df, merged_data),
         "Genre Analysis": lambda: render_genre_analysis(df),
         "Release Trends": lambda: render_release_trends(df),

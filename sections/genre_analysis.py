@@ -34,6 +34,7 @@ def render_genre_analysis(df):
 
 def _render_genre_distribution(df):
     genre_exploded = explode_multivalue_frame(df, "genres", lowercase=True)
+    genre_exploded = genre_exploded[genre_exploded["genres"] != "indie"].copy()
     if genre_exploded.empty:
         st.info("No exploded genre rows are available.")
         return

@@ -224,7 +224,7 @@ def _build_tag_profit_figure(sorted_df, title):
             "Profit vs. Review Sentiment",
             "Average Profit per Game by Tag (Millions $)",
         ),
-        vertical_spacing=0.12,
+        vertical_spacing=0.18,
         horizontal_spacing=0.08,
     )
 
@@ -233,7 +233,7 @@ def _build_tag_profit_figure(sorted_df, title):
             x=sorted_df["tag"],
             y=sorted_df["Average Profit (M)"],
             marker_color=sorted_df["positive%"],
-            marker_colorbar=dict(title="Positive %"),
+            marker_showscale=False,
             marker_colorscale="RdYlGn",
             text=sorted_df["Average Profit (M)"].apply(lambda value: f"${value:.1f}M"),
             textposition="auto",
@@ -253,7 +253,7 @@ def _build_tag_profit_figure(sorted_df, title):
                 ),
                 color=sorted_df["avg_price"],
                 colorscale="Viridis",
-                colorbar=dict(title="Avg Price ($)"),
+                colorbar=dict(title="Avg Price ($)", x=1.04, len=0.42, y=0.78),
                 showscale=True,
             ),
             text=sorted_df["tag"],
@@ -272,7 +272,7 @@ def _build_tag_profit_figure(sorted_df, title):
             y=sorted_df["Average Profit per game (M)"],
             marker_color=sorted_df["Game Count"],
             marker_colorscale="Blues",
-            marker_colorbar=dict(title="Game Count"),
+            marker_showscale=False,
             text=sorted_df["Average Profit per game (M)"].apply(
                 lambda value: f"${value:.2f}M"
             ),
@@ -286,6 +286,7 @@ def _build_tag_profit_figure(sorted_df, title):
     fig.update_layout(
         title_text=title,
         height=900,
+        margin=dict(r=110),
         template="plotly_white",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )

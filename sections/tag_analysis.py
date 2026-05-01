@@ -7,10 +7,18 @@ from sections.analytics_utils import (
     build_tag_profit_table,
     filter_profit_scope,
 )
+from sections.tag_ai_summary import (
+    DEFAULT_MAX_REVIEWS,
+    build_tag_review_contexts,
+    generate_and_save_summary,
+    get_openrouter_config,
+    get_saved_summary,
+    get_summary_collection_name,
+)
 from ui import STRETCH_WIDTH
 
 
-def render_tag_analysis(df, merged_data=None):
+def render_tag_analysis(df, merged_data=None, reviews_data=None, dlcs_data=None):
     st.title("Game Tags Analysis")
     st.markdown("---")
 
@@ -18,8 +26,13 @@ def render_tag_analysis(df, merged_data=None):
         st.warning("Tag data is not available.")
         return
 
-    review_tab, profit_tab, playtime_tab = st.tabs(
-        ["Reviews by Tag", "Profit & Competition", "Playtime by Tag"]
+    review_tab, profit_tab, playtime_tab, ai_tab = st.tabs(
+        [
+            "Reviews by Tag",
+            "Profit & Competition",
+            "Playtime by Tag",
+            "AI Review Summary",
+        ]
     )
 
     with review_tab:
@@ -30,6 +43,9 @@ def render_tag_analysis(df, merged_data=None):
 
     with playtime_tab:
         _render_tag_playtime_analysis(merged_data)
+
+    with ai_tab:
+        _render_tag_ai_summary(df, reviews_data, dlcs_data)
 
 
 def _render_tag_review_analysis(df):
@@ -279,3 +295,110 @@ def _render_tag_playtime_analysis(merged_data):
     )
     fig_playtime.update_layout(yaxis={"categoryorder": "total ascending"})
     st.plotly_chart(fig_playtime, **STRETCH_WIDTH)
+
+
+def _render_tag_ai_summary(df, reviews_data, dlcs_data):
+    st.subheader("AI Review Summary by Tag")
+    st.caption(
+        "Generates one OpenRouter summary per tag from up to "
+        f"{DEFAULT_MAX_REVIEWS} sampled reviews, then saves it in MongoDB."
+    )
+
+    if reviews_data is None or reviews_data.empty:
+        st.info("Raw reviews with review text are required for AI summaries.")
+        return
+
+    with st.spinner("Preparing review groups by tag..."):
+        tag_contexts = build_tag_review_contexts(df, reviews_data, dlcs_data)
+
+    if not tag_contexts:
+        st.info("No tag review groups could be built from the current data.")
+        return
+
+    sorted_tags = sorted(
+        tag_contexts,
+        key=lambda tag: len(tag_contexts[tag]["reviews"]),
+        reverse=True,
+    )
+
+    selected_tag = st.selectbox(
+        "Tag to summarize",
+        sorted_tags,
+        format_func=lambda tag: f"{tag} ({len(tag_contexts[tag]['reviews']):,} reviews)",
+        key="tag_ai_summary_selector",
+    )
+    context = tag_contexts[selected_tag]
+
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("Reviews", f"{len(context['reviews']):,}")
+    metric_cols[1].metric("Games", f"{len(context['game_ids']):,}")
+    metric_cols[2].metric("DLCs", f"{len(context['dlcs']):,}")
+    metric_cols[3].metric("Sample Cap", f"{DEFAULT_MAX_REVIEWS:,}")
+
+    openrouter_config = get_openrouter_config()
+    model = st.text_input(
+        "OpenRouter model",
+        value=openrouter_config["model"],
+        help="Default uses OpenRouter's free router model.",
+        key="tag_ai_openrouter_model",
+    ).strip() or openrouter_config["model"]
+
+    api_key = openrouter_config["api_key"]
+    if not api_key:
+        api_key = st.text_input(
+            "OpenRouter API key",
+            type="password",
+            help=(
+                "Set OPENROUTER_API_KEY or [openrouter].api_key in Streamlit "
+                "secrets to avoid entering this manually."
+            ),
+            key="tag_ai_openrouter_key",
+        )
+
+    saved_summary = None
+    try:
+        saved_summary = get_saved_summary(selected_tag, model)
+    except Exception as exc:
+        st.warning(f"Could not read saved AI summaries from MongoDB: {exc}")
+
+    st.caption(f"MongoDB cache collection: `{get_summary_collection_name()}`")
+
+    generate_label = (
+        "Regenerate and save summary" if saved_summary else "Generate and save summary"
+    )
+    if st.button(
+        generate_label,
+        type="primary" if not saved_summary else "secondary",
+        key=f"tag_ai_generate_{selected_tag}",
+    ):
+        if not api_key:
+            st.error("OpenRouter API key is required to generate a new summary.")
+            return
+        try:
+            with st.spinner("Calling OpenRouter and saving summary to MongoDB..."):
+                saved_summary = generate_and_save_summary(
+                    selected_tag,
+                    context,
+                    api_key=api_key,
+                    model=model,
+                )
+            st.success("Summary generated and saved.")
+        except Exception as exc:
+            st.error(f"Could not generate summary: {exc}")
+            return
+
+    if not saved_summary:
+        st.info("No saved summary exists for this tag yet.")
+        return
+
+    generated_at = saved_summary.get("created_at")
+    if generated_at:
+        st.caption(
+            "Saved summary "
+            f"| model: `{saved_summary.get('model_used', model)}` "
+            f"| sampled: {saved_summary.get('sampled_reviews', 0):,}/"
+            f"{saved_summary.get('total_reviews', 0):,} reviews "
+            f"| generated: {generated_at}"
+        )
+
+    st.markdown(saved_summary.get("analysis", ""))

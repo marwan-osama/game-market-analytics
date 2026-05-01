@@ -22,10 +22,23 @@ def apply_custom_css():
     st.markdown(
         """
         <style>
-        .main > div { padding-top: 2rem; }
         .block-container {
             animation: pageFadeIn 180ms ease-out;
-            padding-top: 2rem;
+            max-width: 100% !important;
+            overflow: visible;
+            padding-left: clamp(1rem, 2vw, 2.5rem);
+            padding-right: clamp(1rem, 2vw, 2.5rem);
+        }
+
+        [data-testid="stElementContainer"],
+        [data-testid="stVerticalBlock"],
+        [data-testid="stHorizontalBlock"],
+        [data-testid="stPlotlyChart"] {
+            overflow: visible;
+        }
+
+        [data-testid="stPlotlyChart"] > div {
+            width: 100% !important;
         }
 
         @keyframes pageFadeIn {
