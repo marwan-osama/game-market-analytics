@@ -2,6 +2,7 @@ import plotly.express as px
 import streamlit as st
 
 from sections.analytics_utils import (
+    add_quadrant_guides,
     build_genre_metrics,
     explode_multivalue_frame,
     prepare_profit_frame,
@@ -121,7 +122,7 @@ def _render_genre_features(df):
 def _render_genre_competition(df):
     genre_metrics = build_genre_metrics(prepare_profit_frame(df))
     if genre_metrics.empty:
-        st.info("Profit and purchase data are required for genre competition analysis.")
+        st.info("Price and total review counts are required for genre competition analysis.")
         return
 
     min_games = st.slider(
@@ -166,7 +167,21 @@ def _render_genre_competition(df):
             "avg_positive_ratio": "Avg. Positive Ratio",
         },
     )
-    fig_competition.add_vline(x=median_count, line_dash="dash")
-    fig_competition.add_hline(y=median_profit, line_dash="dash")
-    fig_competition.update_traces(textposition="top center")
+    add_quadrant_guides(
+        fig_competition,
+        filtered_metrics,
+        "game_count",
+        "avg_profit",
+        median_count,
+        median_profit,
+    )
+    fig_competition.update_traces(
+        textposition="top center",
+        textfont=dict(size=9),
+        marker=dict(line=dict(width=1, color="DarkSlateGrey")),
+    )
+    fig_competition.update_layout(
+        xaxis_title="Number of Games (Competition Level)",
+        yaxis_title="Average Profit ($)",
+    )
     st.plotly_chart(fig_competition, **STRETCH_WIDTH)

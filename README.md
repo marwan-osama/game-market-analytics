@@ -168,10 +168,10 @@ streamlit_app/
 
 Profit is estimated using the following formula:
 ```
-Profit = Price * Total Steam Purchases * 0.4
+Profit = Price * Total Reviews * 0.4
 ```
 
-Where 0.4 represents Steam's approximate 40% revenue share.
+`total_reviews` is used as the purchase estimate. The `0.4` multiplier represents Steam's approximate 40% revenue share.
 
 ## Troubleshooting
 

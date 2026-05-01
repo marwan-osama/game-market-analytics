@@ -22,7 +22,7 @@ def render_profit_analysis(df, merged_data):
         or "Profit" not in profit_frame.columns
         or "total_steam_purchases" not in profit_frame.columns
     ):
-        st.warning("Reviews-derived purchase totals are required for profit analysis.")
+        st.warning("Price and total review counts are required for profit analysis.")
         return
 
     tag_tab, games_tab, drivers_tab = st.tabs(
@@ -205,10 +205,10 @@ def _render_profit_driver_tab(profit_frame):
         y="total_steam_purchases",
         color="primary_tag",
         hover_name="name",
-        title="Price vs. Total Steam Purchases",
+        title="Price vs. Estimated Purchases from Reviews",
         labels={
             "price": "Price ($)",
-            "total_steam_purchases": "Total Steam Purchases",
+            "total_steam_purchases": "Estimated Purchases (Total Reviews)",
         },
     )
     st.plotly_chart(fig_price, **STRETCH_WIDTH)

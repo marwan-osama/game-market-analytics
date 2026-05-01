@@ -66,6 +66,9 @@ def prepare_profit_frame(dataframe):
                 profit_frame[column], errors="coerce"
             )
 
+    if "total_reviews" in profit_frame.columns:
+        profit_frame["total_steam_purchases"] = profit_frame["total_reviews"].fillna(0)
+
     if "primary_tag" not in profit_frame.columns and "tag" in profit_frame.columns:
         def get_primary_tag(value):
             tags = split_multi_value(value)
@@ -218,6 +221,73 @@ def build_top_games_per_tag(dataframe, n=3):
         return pd.DataFrame()
 
     return pd.concat(top_groups, ignore_index=True)
+
+
+def add_quadrant_guides(fig, dataframe, x_column, y_column, median_x, median_y):
+    if dataframe is None or dataframe.empty:
+        return fig
+    if not has_columns(dataframe, [x_column, y_column]):
+        return fig
+
+    x_values = pd.to_numeric(dataframe[x_column], errors="coerce").dropna()
+    y_values = pd.to_numeric(dataframe[y_column], errors="coerce").dropna()
+    if x_values.empty or y_values.empty or pd.isna(median_x) or pd.isna(median_y):
+        return fig
+
+    max_x = max(float(x_values.max()), float(median_x), 1)
+    max_y = max(float(y_values.max()), float(median_y), 1)
+    x_limit = max_x * 1.1
+    y_limit = max_y * 1.1
+
+    fig.add_shape(
+        type="line",
+        line=dict(dash="dash", width=1),
+        x0=float(median_x),
+        y0=0,
+        x1=float(median_x),
+        y1=y_limit,
+    )
+    fig.add_shape(
+        type="line",
+        line=dict(dash="dash", width=1),
+        x0=0,
+        y0=float(median_y),
+        x1=x_limit,
+        y1=float(median_y),
+    )
+
+    annotation_font = dict(size=14)
+    fig.add_annotation(
+        x=float(median_x) / 2,
+        y=max_y * 0.9,
+        text="Low Competition<br>High Profit",
+        showarrow=False,
+        font=annotation_font,
+    )
+    fig.add_annotation(
+        x=max_x * 0.75,
+        y=max_y * 0.9,
+        text="High Competition<br>High Profit",
+        showarrow=False,
+        font=annotation_font,
+    )
+    fig.add_annotation(
+        x=float(median_x) / 2,
+        y=float(median_y) / 2,
+        text="Low Competition<br>Low Profit",
+        showarrow=False,
+        font=annotation_font,
+    )
+    fig.add_annotation(
+        x=max_x * 0.75,
+        y=float(median_y) / 2,
+        text="High Competition<br>Low Profit",
+        showarrow=False,
+        font=annotation_font,
+    )
+    fig.update_xaxes(range=[0, x_limit])
+    fig.update_yaxes(range=[0, y_limit])
+    return fig
 
 
 def filter_profit_scope(tag_df, scope):

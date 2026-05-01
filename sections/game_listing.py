@@ -41,7 +41,7 @@ def render_game_listing(df, reviews_data=None, dlcs_data=None):
             st.button("Back to game listing", on_click=_clear_selected_dlc)
             return
 
-        _render_dlc_details(selected_dlc, games)
+        _render_dlc_details(selected_dlc, games, reviews_data)
         return
 
     selected_game_id = _get_selected_game_id()
@@ -505,7 +505,7 @@ def _render_game_details(game, reviews_data=None, dlcs_data=None):
     _render_game_reviews(game, reviews_data)
 
 
-def _render_dlc_details(dlc, games):
+def _render_dlc_details(dlc, games, reviews_data=None):
     parent_id = _normalize_listing_id(dlc.get("parent_app_id"))
     parent_game = _find_game_by_listing_id(games, parent_id) if parent_id else None
     parent_name = (
@@ -597,14 +597,16 @@ def _render_dlc_details(dlc, games):
         )
         _render_external_links(dlc)
 
+    _render_game_reviews(dlc, reviews_data, content_type="DLC")
 
-def _render_game_reviews(game, reviews_data):
+
+def _render_game_reviews(game, reviews_data, content_type="game"):
     st.markdown("---")
-    st.subheader("Game reviews")
+    st.subheader(f"{content_type.title()} reviews")
 
     reviews = _get_reviews_for_game(game, reviews_data)
     if reviews.empty:
-        st.info("No review rows are available for this game.")
+        st.info(f"No review rows are available for this {content_type.lower()}.")
         return
 
     reviews = _prepare_reviews_for_display(reviews)
@@ -618,26 +620,29 @@ def _render_game_reviews(game, reviews_data):
     cols[2].metric("Not Recommended", f"{negative_count:,}")
     cols[3].metric("Unknown", f"{unknown_count:,}")
 
-    game_key = _normalize_listing_id(game.get("_listing_id"))
+    game_key = _normalize_listing_id(
+        game.get("_listing_id") or game.get("app_id") or game.get("parent_app_id")
+    )
+    key_prefix = content_type.lower().replace(" ", "_")
     controls = st.columns([1, 1, 2])
     with controls[0]:
         recommendation_filter = st.selectbox(
             "Review filter",
             ["All", "Recommended", "Not Recommended", "Unknown"],
-            key=f"review_filter_{game_key}",
+            key=f"{key_prefix}_review_filter_{game_key}",
         )
     with controls[1]:
         review_limit = st.selectbox(
             "Show reviews",
             [5, 10, 20, 50],
             index=1,
-            key=f"review_limit_{game_key}",
+            key=f"{key_prefix}_review_limit_{game_key}",
         )
     with controls[2]:
         search_text = st.text_input(
             "Search reviews",
             placeholder="Search review text",
-            key=f"review_search_{game_key}",
+            key=f"{key_prefix}_review_search_{game_key}",
         )
 
     visible_reviews = reviews.copy()

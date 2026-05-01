@@ -95,10 +95,11 @@ def _render_feature_analysis(df):
     with col2:
         fig_treemap = px.treemap(
             feature_counts.head(20),
-            path=["feature"],
+            path=[px.Constant("All Features"), "feature"],
             values="count",
             title="Game Features Treemap",
             color="count",
             color_continuous_scale="Blues",
         )
+        fig_treemap.update_layout(margin=dict(t=50, l=25, r=25, b=25))
         st.plotly_chart(fig_treemap, **STRETCH_WIDTH)

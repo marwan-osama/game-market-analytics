@@ -376,7 +376,11 @@ def preprocess_data(games_data, dlcs_data, reviews_data, game_extra_data=None):
     elif reviews_data is not None:
         st.warning("Reviews collection was loaded but is missing parent_app_id.")
 
-    if "total_steam_purchases" in games_clean.columns:
+    if "total_reviews" in games_clean.columns:
+        games_clean["total_steam_purchases"] = pd.to_numeric(
+            games_clean["total_reviews"], errors="coerce"
+        ).fillna(0)
+    elif "total_steam_purchases" in games_clean.columns:
         games_clean["total_steam_purchases"] = pd.to_numeric(
             games_clean["total_steam_purchases"], errors="coerce"
         ).fillna(0)
