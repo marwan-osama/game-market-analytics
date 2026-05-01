@@ -241,7 +241,7 @@ def add_quadrant_guides(fig, dataframe, x_column, y_column, median_x, median_y):
 
     fig.add_shape(
         type="line",
-        line=dict(dash="dash", width=1),
+        line=dict(color="#9ca3af", dash="dash", width=1),
         x0=float(median_x),
         y0=0,
         x1=float(median_x),
@@ -249,7 +249,7 @@ def add_quadrant_guides(fig, dataframe, x_column, y_column, median_x, median_y):
     )
     fig.add_shape(
         type="line",
-        line=dict(dash="dash", width=1),
+        line=dict(color="#9ca3af", dash="dash", width=1),
         x0=0,
         y0=float(median_y),
         x1=x_limit,
