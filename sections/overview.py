@@ -31,16 +31,6 @@ def render_overview(df):
         st.dataframe(get_dataframe_summary(df), **STRETCH_WIDTH)
         st.dataframe(df.head(10), **STRETCH_WIDTH)
 
-    with st.expander("Missing Values"):
-        null_counts = df.isna().sum()
-        null_df = pd.DataFrame(
-            {"Missing": null_counts, "Percentage": (null_counts / len(df) * 100)}
-        )
-        null_df = null_df[null_df["Missing"] > 0].sort_values(
-            "Missing", ascending=False
-        )
-        st.dataframe(null_df)
-
     st.markdown("---")
 
     st.subheader("Price Distribution")
